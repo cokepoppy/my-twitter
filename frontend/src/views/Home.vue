@@ -27,6 +27,26 @@
             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2zm9 7l9-5H3l9 5zm0 2l-9-5v10h18V8l-9 5z"/></svg>
             <span class="text-xl">Messages</span>
           </router-link>
+          <router-link to="/bookmarks" class="flex items-center w-fit space-x-4 px-4 py-3 rounded-full hover:bg-gray-100 transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M6 2h12a1 1 0 011 1v18l-7-4-7 4V3a1 1 0 011-1z"/></svg>
+            <span class="text-xl">Bookmarks</span>
+          </router-link>
+          <router-link to="/lists" class="flex items-center w-fit space-x-4 px-4 py-3 rounded-full hover:bg-gray-100 transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h10v2H4v-2zm0 5h16v2H4v-2z"/></svg>
+            <span class="text-xl">Lists</span>
+          </router-link>
+          <router-link to="/communities" class="flex items-center w-fit space-x-4 px-4 py-3 rounded-full hover:bg-gray-100 transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 100-10 5 5 0 000 10zM2 20a8 8 0 0116 0v2H2v-2zm20-4h-2a6 6 0 00-6-6v-2a8 8 0 018 8z"/></svg>
+            <span class="text-xl">Communities</span>
+          </router-link>
+          <router-link to="/premium" class="flex items-center w-fit space-x-4 px-4 py-3 rounded-full hover:bg-gray-100 transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 7h7l-5.5 4.1L18 21l-6-4-6 4 1.5-7.9L2 9h7z"/></svg>
+            <span class="text-xl">Premium</span>
+          </router-link>
+          <button type="button" class="flex items-center w-fit space-x-4 px-4 py-3 rounded-full hover:bg-gray-100 transition">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+            <span class="text-xl">More</span>
+          </button>
         </nav>
         <div class="mt-4 pr-4">
           <button class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 rounded-full transition">Post</button>
@@ -61,7 +81,7 @@
           </div>
 
           <!-- Composer -->
-          <div class="border-b border-[color:var(--twitter-border)] px-4 py-3">
+          <div id="composer" class="border-b border-[color:var(--twitter-border)] px-4 py-3">
             <div class="flex gap-3">
               <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="48" />
               <div class="flex-1">
@@ -159,7 +179,7 @@
       </div>
     </div>
     <!-- Mobile bottom navigation -->
-    <nav class="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur border-t border-[color:var(--twitter-border)] h-14 flex items-center justify-around z-50 pb-[env(safe-area-inset-bottom)]">
+    <nav class="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur border-t border-[color:var(--twitter-border)] h-14 flex items-center justify-around z-40 pb-[env(safe-area-inset-bottom)]">
     <router-link to="/" class="p-2" aria-label="Home">
       <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M21.59 7.15L12.52 1.16a1 1 0 00-1.04 0L2.41 7.15a1 1 0 00-.41.76v13.18c0 .5.42.91.93.91H9.14c.51 0 .93-.41.93-.91v-7.08h3.9v7.08c0 .5.42.91.93.91h6.16c.51 0 .93-.41.93-.91V7.91a1 1 0 00-.41-.76z"/></svg>
     </router-link>
@@ -173,6 +193,10 @@
       <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2zm9 7l9-5H3l9 5zm0 2l-9-5v10h18V8l-9 5z"/></svg>
     </router-link>
     </nav>
+    <!-- Floating compose button (mobile) -->
+    <button @click="scrollToComposer" class="md:hidden fixed bottom-20 right-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-14 h-14 shadow-lg flex items-center justify-center z-50">
+      <svg class="w-7 h-7" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
   </div>
 </template>
 
@@ -229,6 +253,11 @@ const postTweet = () => {
 
   tweets.value.unshift(newTweet)
   tweetContent.value = ''
+}
+
+const scrollToComposer = () => {
+  const el = document.getElementById('composer')
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 onMounted(() => {

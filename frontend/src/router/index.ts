@@ -8,6 +8,10 @@ import Explore from '@/views/Explore.vue'
 import Notifications from '@/views/Notifications.vue'
 import Messages from '@/views/Messages.vue'
 import Settings from '@/views/Settings.vue'
+import Bookmarks from '@/views/Bookmarks.vue'
+import Lists from '@/views/Lists.vue'
+import Communities from '@/views/Communities.vue'
+import Premium from '@/views/Premium.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +20,30 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: Home,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/bookmarks',
+      name: 'bookmarks',
+      component: Bookmarks,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/lists',
+      name: 'lists',
+      component: Lists,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/communities',
+      name: 'communities',
+      component: Communities,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/premium',
+      name: 'premium',
+      component: Premium,
       meta: { requiresAuth: true }
     },
     {
