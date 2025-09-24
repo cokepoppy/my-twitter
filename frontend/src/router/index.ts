@@ -1,0 +1,92 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import Home from '@/views/Home.vue'
+import Login from '@/views/Login.vue'
+import Register from '@/views/Register.vue'
+import Profile from '@/views/Profile.vue'
+import Tweet from '@/views/Tweet.vue'
+import Explore from '@/views/Explore.vue'
+import Notifications from '@/views/Notifications.vue'
+import Messages from '@/views/Messages.vue'
+import Settings from '@/views/Settings.vue'
+
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'home',
+      component: Home,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: Login,
+      meta: { guest: true }
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: Register,
+      meta: { guest: true }
+    },
+    {
+      path: '/profile/:username',
+      name: 'profile',
+      component: Profile,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/tweet/:id',
+      name: 'tweet',
+      component: Tweet,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/explore',
+      name: 'explore',
+      component: Explore,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: Notifications,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/messages',
+      name: 'messages',
+      component: Messages,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/settings',
+      name: 'settings',
+      component: Settings,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: () => import('@/views/NotFound.vue')
+    }
+  ]
+})
+
+// Navigation guard
+router.beforeEach((to, from, next) => {
+  const token = localStorage.getItem('token')
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  const isGuest = to.matched.some(record => record.meta.guest)
+
+  if (requiresAuth && !token) {
+    next('/login')
+  } else if (isGuest && token) {
+    next('/')
+  } else {
+    next()
+  }
+})
+
+export default router
