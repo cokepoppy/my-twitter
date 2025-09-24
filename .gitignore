@@ -151,3 +151,8 @@ Desktop.ini
 # Temporary files
 *.tmp
 *.temp
+
+# SSH keys and deployment files
+test/*.pem
+deploy-key.pem
+*.key
