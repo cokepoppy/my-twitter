@@ -22,6 +22,7 @@
                 required
                 class="twitter-input"
                 placeholder="Enter your email"
+                autocomplete="email"
               />
             </div>
           </div>
@@ -38,6 +39,7 @@
                 required
                 class="twitter-input"
                 placeholder="Enter your password"
+                autocomplete="current-password"
               />
             </div>
           </div>

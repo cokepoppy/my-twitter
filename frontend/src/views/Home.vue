@@ -234,6 +234,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import Avatar from '@/components/Avatar.vue'
+import TweetMedia from '@/components/TweetMedia.vue'
 
 const authStore = useAuthStore()
 
@@ -311,7 +312,7 @@ onMounted(() => {
       likesCount: 25,
       viewsCount: '12.4K',
       media: [
-        'https://images.unsplash.com/photo-1612198185723-6a4497f1ee86?q=80&w=1200&auto=format&fit=crop'
+        'https://picsum.photos/id/40/1200/800',
       ],
     },
     {
@@ -329,9 +330,9 @@ onMounted(() => {
       likesCount: 18,
       viewsCount: '3,201',
       media: [
-        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop',
-        'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1200&auto=format&fit=crop'
+        'https://picsum.photos/id/10/1200/800',
+        'https://picsum.photos/id/20/1200/800',
+        'https://picsum.photos/id/30/1200/800',
       ],
     },
   ]

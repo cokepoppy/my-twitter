@@ -30,3 +30,8 @@ const props = withDefaults(defineProps<Props>(), {
 const sizePx = computed(() => `${props.size}px`)
 </script>
 
+<script lang="ts">
+export default {
+  inheritAttrs: false,
+}
+</script>
