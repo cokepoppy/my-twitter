@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String    @id @default(cuid())
+  username        String    @unique
+  email           String    @unique
+  passwordHash    String
+  fullName        String?
+  bio             String?
+  location        String?
+  website         String?
+  avatarUrl       String?
+  headerUrl       String?
+  birthDate       DateTime?
+  isVerified      Boolean   @default(false)
+  isPrivate       Boolean   @default(false)
+  followersCount  Int       @default(0)
+  followingCount  Int       @default(0)
+  tweetsCount     Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  tweets         Tweet[]     @relation("UserTweets")
+  likes          Like[]
+  sentFollows    Follow[] @relation("UserFollows")
+  receivedFollows Follow[] @relation("UserFollowed")
+  sentMessages   Message[]   @relation("MessageSender")
+  receivedMessages Message[] @relation("MessageReceiver")
+  notifications  Notification[]
+  sentNotifications Notification[] @relation("NotificationActor")
+
+  @@map("users")
+}
+
+model Tweet {
+  id             String    @id @default(cuid())
+  userId         String
+  content        String
+  replyToTweetId String?
+  replyToUserId  String?
+  retweetId      String?
+  viewsCount     Int       @default(0)
+  likesCount     Int       @default(0)
+  retweetsCount  Int       @default(0)
+  repliesCount   Int       @default(0)
+  isDeleted      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Relations
+  user        User        @relation("UserTweets", fields: [userId], references: [id], onDelete: Cascade)
+  media       Media[]
+  likes       Like[]
+  replies     Tweet[]     @relation("TweetReplies")
+  parentTweet Tweet?      @relation("TweetReplies", fields: [replyToTweetId], references: [id])
+  retweets    Tweet[]     @relation("TweetRetweets")
+  originalTweet Tweet?    @relation("TweetRetweets", fields: [retweetId], references: [id])
+  notifications Notification[]
+
+  @@map("tweets")
+}
+
+model Media {
+  id           String  @id @default(cuid())
+  tweetId      String
+  fileUrl      String
+  fileType     String  // 'image' | 'video' | 'gif'
+  fileSize     Int
+  width        Int?
+  height       Int?
+  duration     Int?    // for videos
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+
+  // Relations
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  @@map("media")
+}
+
+model Follow {
+  id            String    @id @default(cuid())
+  followerId    String
+  followingId   String
+  createdAt     DateTime  @default(now())
+
+  // Relations
+  follower  User @relation("UserFollows", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("UserFollowed", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@map("follows")
+}
+
+model Like {
+  id        String    @id @default(cuid())
+  userId    String
+  tweetId   String
+  createdAt DateTime  @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tweet Tweet @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tweetId])
+  @@map("likes")
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  actorId   String
+  tweetId   String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actor User  @relation("NotificationActor", fields: [actorId], references: [id], onDelete: Cascade)
+  tweet Tweet? @relation(fields: [tweetId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  senderId    String
+  receiverId  String
+  content     String
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  sender    User    @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver  User    @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+// Enums
+enum NotificationType {
+  LIKE
+  FOLLOW
+  REPLY
+  RETWEET
+  MENTION
+}
