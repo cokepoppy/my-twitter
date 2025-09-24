@@ -1,15 +1,16 @@
 <template>
-  <component :is="src ? 'img' : 'div'"
-             :src="src || undefined"
-             :alt="alt"
-             class="rounded-full bg-gray-200 overflow-hidden select-none"
-             :style="{ width: sizePx, height: sizePx }">
-    <svg v-if="!src" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" class="w-full h-full">
-      <circle cx="60" cy="60" r="60" fill="#EFF3F4"/>
-      <circle cx="60" cy="48" r="22" fill="#AAB8C2"/>
-      <path d="M20 102c6-22 25-34 40-34s34 12 40 34" fill="#AAB8C2"/>
-    </svg>
-  </component>
+  <img
+    :src="finalSrc"
+    :alt="alt"
+    class="rounded-full overflow-hidden select-none bg-gray-100"
+    :style="{ width: sizePx, height: sizePx }"
+    loading="lazy"
+    decoding="async"
+    referrerpolicy="no-referrer"
+    crossorigin="anonymous"
+    draggable="false"
+    @error="onError"
+  />
 </template>
 
 <script setup lang="ts">
@@ -19,19 +20,32 @@ interface Props {
   src?: string | null
   alt?: string
   size?: number // px
+  styleName?: 'adventurer' | 'avataaars' | 'micah' | 'bottts'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   src: null,
   alt: 'avatar',
   size: 48,
+  styleName: 'adventurer',
 })
 
 const sizePx = computed(() => `${props.size}px`)
-</script>
 
-<script lang="ts">
-export default {
-  inheritAttrs: false,
+const dicebearUrl = computed(() => {
+  const seed = encodeURIComponent((props.alt || 'avatar').toString())
+  const size = Math.max(32, Math.min(480, Math.round(props.size)))
+  return `https://api.dicebear.com/7.x/${props.styleName}/png?size=${size}&seed=${seed}`
+})
+
+const finalSrc = computed(() => props.src || dicebearUrl.value)
+
+const FALLBACK =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(`<?xml version="1.0" encoding="UTF-8"?><svg xmlns="http://www.w3.org/2000/svg" width="120" height="120"><rect width="100%" height="100%" rx="999" fill="#F2F4F7"/><text x="50%" y="55%" dominant-baseline="middle" text-anchor="middle" fill="#98A2B3" font-family="Arial, sans-serif" font-size="12">avatar</text></svg>`)
+
+function onError(e: Event) {
+  const t = e.target as HTMLImageElement
+  if (t && t.src !== FALLBACK) t.src = FALLBACK
 }
 </script>
