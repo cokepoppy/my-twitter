@@ -12,7 +12,8 @@ module.exports = {
         'twitter-gray': '#657786',
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['TwitterChirp', 'Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif'],
+        display: ['TwitterChirpExtendedHeavy', 'TwitterChirp', 'Inter', 'system-ui', 'sans-serif'],
       },
     },
   },

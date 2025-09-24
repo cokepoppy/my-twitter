@@ -48,8 +48,8 @@
       <!-- Main and Right -->
       <div class="flex w-full">
         <!-- Main timeline -->
-        <main class="w-full md:max-w-[600px] border-x border-gray-200 min-h-screen">
-          <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-gray-200">
+        <main class="w-full md:max-w-[600px] border-x border-[color:var(--twitter-border)] min-h-screen pb-16 md:pb-0">
+          <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[color:var(--twitter-border)]">
             <div class="flex items-center justify-between px-4 py-3">
               <h1 class="text-xl font-bold">Home</h1>
               <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3c-6.62-.1-10.38 2.42-13.05 6.03C7.29 12.61 6 17.33 6 22h2c0-1.01.07-2.01.19-3H12c4.1 0 7.48-3.08 7.94-7.05C22.79 10.15 23.17 6.36 23 3zM4 9V6H1V4h3V1h2v3h3v2H6v3H4z"/></svg>
@@ -61,7 +61,7 @@
           </div>
 
           <!-- Composer -->
-          <div class="border-b border-gray-200 px-4 py-3">
+          <div class="border-b border-[color:var(--twitter-border)] px-4 py-3">
             <div class="flex gap-3">
               <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="48" />
               <div class="flex-1">
@@ -86,7 +86,7 @@
 
           <!-- Feed -->
           <div>
-            <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-gray-200 px-4 py-3 hover:bg-gray-50 transition">
+            <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-[color:var(--twitter-border)] px-4 py-3 hover:bg-gray-50 transition">
               <div class="flex gap-3">
                 <Avatar :src="tweet.user?.avatarUrl" :alt="tweet.user?.username || 'avatar'" :size="48" />
                 <div class="flex-1 min-w-0">
@@ -115,7 +115,7 @@
               <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M10.25 3.75a6.5 6.5 0 100 13 6.5 6.5 0 000-13zm8.28 13.72l3.97 3.97-1.41 1.41-3.97-3.97a8.5 8.5 0 111.41-1.41z"/></svg>
             </div>
           </div>
-          <div class="bg-gray-50 rounded-2xl overflow-hidden">
+          <div class="bg-[color:var(--twitter-panel)] rounded-2xl overflow-hidden">
             <div class="p-4">
               <h2 class="text-xl font-extrabold">What’s happening</h2>
               <div class="mt-3 space-y-3">
@@ -127,7 +127,7 @@
               </div>
             </div>
           </div>
-          <div class="mt-4 bg-gray-50 rounded-2xl overflow-hidden">
+          <div class="mt-4 bg-[color:var(--twitter-panel)] rounded-2xl overflow-hidden">
             <div class="p-4">
               <h2 class="text-xl font-extrabold">Who to follow</h2>
               <div class="mt-3 space-y-3">
@@ -158,6 +158,21 @@
         </aside>
       </div>
     </div>
+    <!-- Mobile bottom navigation -->
+    <nav class="fixed bottom-0 left-0 right-0 md:hidden bg-white/95 backdrop-blur border-t border-[color:var(--twitter-border)] h-14 flex items-center justify-around z-50 pb-[env(safe-area-inset-bottom)]">
+    <router-link to="/" class="p-2" aria-label="Home">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M21.59 7.15L12.52 1.16a1 1 0 00-1.04 0L2.41 7.15a1 1 0 00-.41.76v13.18c0 .5.42.91.93.91H9.14c.51 0 .93-.41.93-.91v-7.08h3.9v7.08c0 .5.42.91.93.91h6.16c.51 0 .93-.41.93-.91V7.91a1 1 0 00-.41-.76z"/></svg>
+    </router-link>
+    <router-link to="/explore" class="p-2" aria-label="Explore">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M10.25 3.75a6.5 6.5 0 100 13 6.5 6.5 0 000-13zm8.28 13.72l3.97 3.97-1.41 1.41-3.97-3.97a8.5 8.5 0 111.41-1.41z"/></svg>
+    </router-link>
+    <router-link to="/notifications" class="p-2" aria-label="Notifications">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M20 16H4l1-7a7 7 0 0114 0l1 7zm-8 6a3 3 0 01-3-3h6a3 3 0 01-3 3z"/></svg>
+    </router-link>
+    <router-link to="/messages" class="p-2" aria-label="Messages">
+      <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M3 4h18a2 2 0 012 2v12a2 2 0 01-2 2H3a2 2 0 01-2-2V6a2 2 0 012-2zm9 7l9-5H3l9 5zm0 2l-9-5v10h18V8l-9 5z"/></svg>
+    </router-link>
+    </nav>
   </div>
 </template>
 
