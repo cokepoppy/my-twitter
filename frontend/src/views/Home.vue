@@ -110,16 +110,46 @@
               <div class="flex gap-3">
                 <Avatar :src="tweet.user?.avatarUrl" :alt="tweet.user?.username || 'avatar'" :size="48" />
                 <div class="flex-1 min-w-0">
-                  <div class="flex items-center gap-2">
-                    <span class="font-semibold truncate">{{ tweet.user?.fullName || 'User' }}</span>
+                  <div class="flex items-center gap-1 text-[15px] leading-5">
+                    <span class="font-bold hover:underline cursor-pointer truncate">{{ tweet.user?.fullName || 'User' }}</span>
+                    <svg v-if="tweet.user?.verified" viewBox="0 0 24 24" class="w-4 h-4 text-blue-500" fill="currentColor" aria-hidden="true"><path d="M12 2l2.39 2.39 3.39-.39-.39 3.39L20 10l-2.61 2.61.39 3.39-3.39-.39L12 18l-2.39-2.39-3.39.39.39-3.39L4 10l2.61-2.61-.39-3.39 3.39.39L12 2z"/></svg>
                     <span class="text-gray-500 truncate">@{{ tweet.user?.username || 'user' }} · {{ formatDate(tweet.createdAt) }}</span>
+                    <button class="ml-auto p-1 rounded-full hover:bg-gray-100">
+                      <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+                    </button>
                   </div>
-                  <div class="mt-1 whitespace-pre-wrap break-words">{{ tweet.content }}</div>
-                  <div class="mt-2 flex items-center justify-between text-gray-500 max-w-[425px]">
-                    <button class="flex items-center gap-2 hover:text-blue-500 group"><svg class="w-5 h-5 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M20 8H4v11h16V8zM7 6h10V5a1 1 0 00-1-1H8a1 1 0 00-1 1v1z"/></svg><span class="text-sm">{{ tweet.repliesCount || 0 }}</span></button>
-                    <button class="flex items-center gap-2 hover:text-green-500 group"><svg class="w-5 h-5 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg><span class="text-sm">{{ tweet.retweetsCount || 0 }}</span></button>
-                    <button class="flex items-center gap-2 hover:text-pink-500 group"><svg class="w-5 h-5 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M12.1 8.64l-.1.1-.11-.11C9.14 5.9 4.6 7.24 4.6 10.8c0 2.35 2.58 4.38 6.55 8.05l.75.67.75-.67c3.97-3.67 6.55-5.7 6.55-8.05 0-3.56-4.54-4.9-7.4-2.16z"/></svg><span class="text-sm">{{ tweet.likesCount || 0 }}</span></button>
-                    <button class="flex items-center gap-2 hover:text-blue-500 group"><svg class="w-5 h-5 group-hover:scale-110 transition" viewBox="0 0 24 24" fill="currentColor"><path d="M17.53 7.47l-5-5-5 5 1.06 1.06L11 6.12V18h2V6.12l2.41 2.41 1.12-1.06z"/></svg></button>
+                  <div class="mt-1 whitespace-pre-wrap break-words leading-5">{{ tweet.content }}</div>
+                  <TweetMedia v-if="tweet.media && tweet.media.length" :media="tweet.media" />
+                  <div class="mt-1 text-gray-500 text-[13px]" v-if="tweet.viewsCount">{{ tweet.viewsCount }} views</div>
+                  <div class="mt-1 flex items-center justify-between text-gray-500 max-w-[520px]">
+                    <button class="group flex items-center gap-1">
+                      <span class="p-2 rounded-full group-hover:bg-blue-50">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20 8H4v11h16V8zM7 6h10V5a1 1 0 00-1-1H8a1 1 0 00-1 1v1z"/></svg>
+                      </span>
+                      <span class="text-sm group-hover:text-blue-500">{{ tweet.repliesCount || 0 }}</span>
+                    </button>
+                    <button class="group flex items-center gap-1">
+                      <span class="p-2 rounded-full group-hover:bg-green-50">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg>
+                      </span>
+                      <span class="text-sm group-hover:text-green-600">{{ tweet.retweetsCount || 0 }}</span>
+                    </button>
+                    <button class="group flex items-center gap-1">
+                      <span class="p-2 rounded-full group-hover:bg-pink-50">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12.1 8.64l-.1.1-.11-.11C9.14 5.9 4.6 7.24 4.6 10.8c0 2.35 2.58 4.38 6.55 8.05l.75.67.75-.67c3.97-3.67 6.55-5.7 6.55-8.05 0-3.56-4.54-4.9-7.4-2.16z"/></svg>
+                      </span>
+                      <span class="text-sm group-hover:text-pink-500">{{ tweet.likesCount || 0 }}</span>
+                    </button>
+                    <button class="group flex items-center gap-1">
+                      <span class="p-2 rounded-full group-hover:bg-blue-50">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.53 7.47l-5-5-5 5 1.06 1.06L11 6.12V18h2V6.12l2.41 2.41 1.12-1.06z"/></svg>
+                      </span>
+                    </button>
+                    <button class="group flex items-center gap-1">
+                      <span class="p-2 rounded-full group-hover:bg-blue-50">
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5v14m-7-7h14"/></svg>
+                      </span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -273,11 +303,16 @@ onMounted(() => {
         username: 'devuser',
         fullName: 'Dev User',
         avatarUrl: null,
+        verified: true,
       },
       createdAt: new Date(Date.now() - 3600000).toISOString(),
       repliesCount: 5,
       retweetsCount: 12,
       likesCount: 25,
+      viewsCount: '12.4K',
+      media: [
+        'https://images.unsplash.com/photo-1612198185723-6a4497f1ee86?q=80&w=1200&auto=format&fit=crop'
+      ],
     },
     {
       id: 2,
@@ -292,6 +327,12 @@ onMounted(() => {
       repliesCount: 2,
       retweetsCount: 3,
       likesCount: 18,
+      viewsCount: '3,201',
+      media: [
+        'https://images.unsplash.com/photo-1501785888041-af3ef285b470?q=80&w=1200&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop',
+        'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=1200&auto=format&fit=crop'
+      ],
     },
   ]
 })
