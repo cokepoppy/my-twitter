@@ -123,7 +123,7 @@ router.beforeEach((to, from, next) => {
   const isGuest = to.matched.some(record => record.meta.guest)
 
   if (requiresAuth && !token) {
-    next('/login')
+    next('/login-v2')
   } else if (isGuest && token) {
     next('/')
   } else {
