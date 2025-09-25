@@ -59,7 +59,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
 
       const response = await axios.post('/api/auth/login', { email, password })
-      const { user: userData, token: userToken } = response.data
+      const { user: userData, token: userToken } = response.data.data
 
       setToken(userToken)
       user.value = userData
@@ -85,7 +85,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
 
       const response = await axios.post('/api/auth/register', userData)
-      const { user: newUser, token: userToken } = response.data
+      const { user: newUser, token: userToken } = response.data.data
 
       setToken(userToken)
       user.value = newUser
@@ -111,7 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       loading.value = true
       const response = await axios.get('/api/auth/me')
-      user.value = response.data
+      user.value = response.data.data
     } catch (err: any) {
       if (err.response?.status === 401) {
         clearToken()
@@ -129,7 +129,7 @@ export const useAuthStore = defineStore('auth', () => {
       error.value = null
 
       const response = await axios.put('/api/users/profile', profileData)
-      user.value = response.data
+      user.value = response.data.data
 
       return { success: true }
     } catch (err: any) {

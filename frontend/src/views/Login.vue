@@ -4,6 +4,10 @@
       <div class="text-center">
         <h1 class="text-3xl font-bold text-twitter-blue">My Twitter</h1>
         <h2 class="mt-6 text-2xl font-bold text-gray-900">Sign in to your account</h2>
+        <p class="mt-2 text-sm text-gray-500">
+          Prefer Google sign-in?
+          <router-link to="/login-v2" class="text-twitter-blue hover:underline">Try the new login</router-link>
+        </p>
       </div>
     </div>
 

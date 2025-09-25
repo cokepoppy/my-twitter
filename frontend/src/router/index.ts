@@ -1,6 +1,8 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '@/views/Home.vue'
 import Login from '@/views/Login.vue'
+import LoginV2 from '@/views/LoginV2.vue'
+import AuthCallback from '@/views/AuthCallback.vue'
 import Register from '@/views/Register.vue'
 import Profile from '@/views/Profile.vue'
 import Tweet from '@/views/Tweet.vue'
@@ -50,6 +52,18 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: Login,
+      meta: { guest: true }
+    },
+    {
+      path: '/login-v2',
+      name: 'login-v2',
+      component: LoginV2,
+      meta: { guest: true }
+    },
+    {
+      path: '/auth/callback',
+      name: 'auth-callback',
+      component: AuthCallback,
       meta: { guest: true }
     },
     {
