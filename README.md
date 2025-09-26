@@ -2,6 +2,12 @@
 
 A full-stack Twitter clone built with Vue 3, Express.js, TypeScript, and modern web technologies.
 
+## 📸 Screenshots
+
+![Login Page](doc/screen/login.png)
+
+![Home Timeline](doc/screen/home.png)
+
 ## 🚀 Features
 
 ### Core Features

@@ -51,8 +51,13 @@
         <div class="mt-4 pr-4">
           <button class="w-full bg-black hover:bg-gray-800 text-white font-bold py-3 rounded-full transition">Post</button>
         </div>
-        <div class="absolute bottom-3 left-3 right-3">
-          <div class="flex items-center justify-between px-3 py-2 rounded-full hover:bg-gray-100 cursor-pointer transition">
+        <div class="absolute bottom-3 left-3 right-3" ref="accountAreaRef">
+          <div
+            class="flex items-center justify-between px-3 py-2 rounded-full hover:bg-gray-100 cursor-pointer transition"
+            @click="toggleAccountMenu"
+            aria-haspopup="true"
+            :aria-expanded="showAccountMenu ? 'true' : 'false'"
+          >
             <div class="flex items-center gap-3">
               <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="40" />
               <div class="hidden xl:block">
@@ -60,7 +65,28 @@
                 <div class="text-gray-500">@{{ authStore.user?.username || 'guest' }}</div>
               </div>
             </div>
-            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M3 12c0-1.66 3.13-3 7-3s7 1.34 7 3-3.13 3-7 3-7-1.34-7-3zm0 3c0 1.66 3.13 3 7 3s7-1.34 7-3m0 3c0 1.66-3.13 3-7 3s-7-1.34-7-3"/></svg>
+            <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
+          </div>
+          <!-- Account switcher hover card -->
+          <div
+            v-if="showAccountMenu"
+            ref="menuRef"
+            class="absolute bottom-16 left-0 w-72 bg-white rounded-xl shadow-xl border border-gray-200 z-50"
+            role="group"
+          >
+            <div class="relative">
+              <svg viewBox="0 0 24 24" aria-hidden="true" class="absolute -bottom-6 left-5 w-6 h-6 text-white">
+                <path d="M22 17H2L12 6l10 11z" class="fill-white stroke-gray-200" />
+              </svg>
+              <div class="divide-y divide-gray-100 rounded-xl overflow-hidden">
+                <button type="button" class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition" @click="goAddAccount">
+                  <span class="text-[15px] text-gray-900">Add an existing account</span>
+                </button>
+                <button type="button" class="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition" @click="handleLogout">
+                  <span class="text-[15px] text-gray-900">Log out @{{ authStore.user?.username }}</span>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </aside>
@@ -231,12 +257,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
+import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import Avatar from '@/components/Avatar.vue'
 import TweetMedia from '@/components/TweetMedia.vue'
 
 const authStore = useAuthStore()
+const router = useRouter()
+const showAccountMenu = ref(false)
+const menuRef = ref<HTMLElement | null>(null)
+const accountAreaRef = ref<HTMLElement | null>(null)
 
 const tweetContent = ref('')
 const tweets = ref<any[]>([])
@@ -293,6 +325,7 @@ const scrollToComposer = () => {
 
 onMounted(() => {
   authStore.initialize()
+  document.addEventListener('click', onDocumentClick)
 
   // Mock tweets data
   tweets.value = [
@@ -337,4 +370,40 @@ onMounted(() => {
     },
   ]
 })
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', onDocumentClick)
+})
+
+const toggleAccountMenu = () => {
+  showAccountMenu.value = !showAccountMenu.value
+}
+
+const onDocumentClick = (e: MouseEvent) => {
+  const target = e.target as Node
+  if (
+    showAccountMenu.value &&
+    menuRef.value &&
+    accountAreaRef.value &&
+    !menuRef.value.contains(target) &&
+    !accountAreaRef.value.contains(target)
+  ) {
+    showAccountMenu.value = false
+  }
+}
+
+const goAddAccount = () => {
+  router.push('/login-v2')
+}
+
+const handleLogout = async () => {
+  try {
+    await axios.post('/api/auth/logout')
+  } catch (_) {
+    // ignore
+  }
+  authStore.logout()
+  showAccountMenu.value = false
+  router.push('/login-v2')
+}
 </script>
