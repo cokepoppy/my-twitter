@@ -181,6 +181,11 @@ my-twitter/
 - `POST /api/follows/:username/follow` - Follow/unfollow user
 - `GET /api/follows/:username/followers` - Get user's followers
 - `GET /api/follows/:username/following` - Get user's following
+- `GET /api/follows/requests` - List incoming follow requests (for private accounts)
+- `GET /api/follows/requests/sent` - List outgoing follow requests
+- `POST /api/follows/requests/:id/approve` - Approve a follow request
+- `POST /api/follows/requests/:id/deny` - Deny a follow request
+- `DELETE /api/follows/:username/remove` - Remove a follower
 
 ### Notification Endpoints
 - `GET /api/notifications` - Get user notifications

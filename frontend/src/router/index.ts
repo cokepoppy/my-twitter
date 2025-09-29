@@ -8,6 +8,7 @@ import Profile from '@/views/Profile.vue'
 import Tweet from '@/views/Tweet.vue'
 import Explore from '@/views/Explore.vue'
 import Notifications from '@/views/Notifications.vue'
+import FollowRequests from '@/views/FollowRequests.vue'
 import Messages from '@/views/Messages.vue'
 import Settings from '@/views/Settings.vue'
 import Bookmarks from '@/views/Bookmarks.vue'
@@ -94,6 +95,12 @@ const router = createRouter({
       path: '/notifications',
       name: 'notifications',
       component: Notifications,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/requests',
+      name: 'follow-requests',
+      component: FollowRequests,
       meta: { requiresAuth: true }
     },
     {

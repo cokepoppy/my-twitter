@@ -103,6 +103,22 @@ model Follow {
   @@map("follows")
 }
 
+model FollowRequest {
+  id         String               @id @default(cuid())
+  requesterId String
+  targetId   String
+  status     FollowRequestStatus  @default(PENDING)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  // Relations
+  requester User @relation("FollowRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("FollowRequestTarget", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, targetId])
+  @@map("follow_requests")
+}
+
 model Like {
   id        String    @id @default(cuid())
   userId    String
@@ -156,4 +172,12 @@ enum NotificationType {
   REPLY
   RETWEET
   MENTION
+  FOLLOW_REQUEST
+  FOLLOW_REQUEST_APPROVED
+}
+
+enum FollowRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

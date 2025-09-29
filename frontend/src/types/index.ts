@@ -77,7 +77,7 @@ export interface Like {
 export interface Notification {
   id: number
   userId: number
-  type: 'like' | 'follow' | 'reply' | 'retweet'
+  type: 'like' | 'follow' | 'reply' | 'retweet' | 'follow_request' | 'follow_request_approved'
   actorId: number
   tweetId?: number
   isRead: boolean
@@ -175,4 +175,19 @@ export interface SearchResult {
 export interface SocketMessage {
   type: 'new_tweet' | 'new_like' | 'new_retweet' | 'new_follow' | 'new_notification'
   data: any
+}
+
+// Follow request types
+export interface FollowRequest {
+  id: string | number
+  requesterId: string | number
+  targetId: string | number
+  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  createdAt: string
+  requester: User
+}
+
+export interface FollowStatus {
+  isFollowing: boolean
+  requested: boolean
 }

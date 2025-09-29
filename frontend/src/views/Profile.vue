@@ -12,9 +12,17 @@
             </button>
             <h1 class="text-xl font-bold text-gray-900">{{ user?.fullName || 'Profile' }}</h1>
           </div>
-          <button class="twitter-button text-sm">
-            Edit Profile
-          </button>
+          <div>
+            <button v-if="isOwnProfile" class="twitter-button text-sm">
+              Edit Profile
+            </button>
+            <FollowButton
+              v-else
+              :username="route.params.username as string"
+              :initial-is-following="followStatus.isFollowing"
+              :initial-requested="followStatus.requested"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -134,14 +142,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import type { User, Tweet } from '@/types'
+import axios from 'axios'
+import FollowButton from '@/components/FollowButton.vue'
+import type { User, Tweet, FollowStatus } from '@/types'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 
+const auth = useAuthStore()
 const user = ref<User | null>(null)
 const userTweets = ref<Tweet[]>([])
+const followStatus = ref<FollowStatus>({ isFollowing: false, requested: false })
+const isOwnProfile = computed(() => auth.user && user.value && auth.user.username === user.value.username)
 
 const formatDate = (dateString?: string) => {
   if (!dateString) return ''
@@ -162,69 +176,21 @@ const formatDate = (dateString?: string) => {
   return `${diffDays}d`
 }
 
-onMounted(() => {
-  const username = route.params.username
+onMounted(async () => {
+  const username = route.params.username as string
+  try {
+    const [profileRes, statusRes] = await Promise.all([
+      axios.get(`/api/users/profile/${encodeURIComponent(username)}`),
+      axios.get(`/api/follows/${encodeURIComponent(username)}/follows`)
+    ])
 
-  // Mock user data
-  user.value = {
-    id: 1,
-    username: username as string,
-    email: 'user@example.com',
-    fullName: 'John Doe',
-    bio: 'Software developer and tech enthusiast. Love building amazing things! 🚀',
-    location: 'San Francisco, CA',
-    website: 'https://johndoe.com',
-    avatarUrl: null,
-    headerUrl: null,
-    followersCount: 1250,
-    followingCount: 856,
-    tweetsCount: 342,
-    isVerified: true,
-    isPrivate: false,
-    createdAt: new Date('2020-01-15').toISOString(),
-    updatedAt: new Date().toISOString()
+    user.value = profileRes.data?.data
+    followStatus.value = statusRes.data?.data
+
+    // TODO: fetch user tweets API when available
+    userTweets.value = []
+  } catch (e) {
+    // handle error
   }
-
-  // Mock user tweets
-  userTweets.value = [
-    {
-      id: 1,
-      userId: 1,
-      content: 'Just launched my new project! 🚀 Check it out and let me know what you think! #vuejs #javascript',
-      replyToTweetId: undefined,
-      replyToUserId: undefined,
-      retweetId: undefined,
-      viewsCount: 1250,
-      likesCount: 45,
-      retweetsCount: 12,
-      repliesCount: 8,
-      isDeleted: false,
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      updatedAt: new Date(Date.now() - 3600000).toISOString(),
-      user: user.value,
-      media: [],
-      isLiked: false,
-      isRetweeted: false
-    },
-    {
-      id: 2,
-      userId: 1,
-      content: 'Beautiful day for coding! ☀️ Working on some new features for my Twitter clone.',
-      replyToTweetId: undefined,
-      replyToUserId: undefined,
-      retweetId: undefined,
-      viewsCount: 890,
-      likesCount: 23,
-      retweetsCount: 5,
-      repliesCount: 3,
-      isDeleted: false,
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-      updatedAt: new Date(Date.now() - 7200000).toISOString(),
-      user: user.value,
-      media: [],
-      isLiked: false,
-      isRetweeted: false
-    }
-  ]
 })
 </script>

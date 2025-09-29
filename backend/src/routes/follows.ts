@@ -6,7 +6,7 @@ import { prisma } from '../config/database'
 
 const router = Router()
 
-// Follow/Unfollow user
+// Follow/Unfollow (or request to follow private user)
 router.post('/:username/follow', authenticate, async (req: AuthRequest, res: any, next: any) => {
   try {
     const { username } = req.params
@@ -53,46 +53,92 @@ router.post('/:username/follow', authenticate, async (req: AuthRequest, res: any
         data: { followersCount: { decrement: 1 } }
       })
 
-      res.json({
+      return res.json({
         success: true,
         message: 'Unfollowed successfully',
-        data: { isFollowing: false }
+        data: { isFollowing: false, requested: false }
       })
-    } else {
-      // Follow
-      await prisma.follow.create({
-        data: {
-          followerId: followerId,
-          followingId: userToFollow.id
+    }
+
+    // If target is private, create or toggle a follow request
+    if (userToFollow.isPrivate) {
+      const existingRequest = await prisma.followRequest.findUnique({
+        where: {
+          requesterId_targetId: {
+            requesterId: followerId,
+            targetId: userToFollow.id
+          }
         }
       })
 
-      // Update follower counts
-      await prisma.user.update({
-        where: { id: followerId },
-        data: { followingCount: { increment: 1 } }
+      if (existingRequest && existingRequest.status === 'PENDING') {
+        // Cancel request
+        await prisma.followRequest.delete({ where: { id: existingRequest.id } })
+        return res.json({
+          success: true,
+          message: 'Follow request canceled',
+          data: { isFollowing: false, requested: false }
+        })
+      }
+
+      // (Re)create request as pending
+      await prisma.followRequest.upsert({
+        where: {
+          requesterId_targetId: { requesterId: followerId, targetId: userToFollow.id }
+        },
+        create: { requesterId: followerId, targetId: userToFollow.id, status: 'PENDING' },
+        update: { status: 'PENDING' }
       })
 
-      await prisma.user.update({
-        where: { id: userToFollow.id },
-        data: { followersCount: { increment: 1 } }
-      })
-
-      // Create notification
+      // Notify target about follow request
       await prisma.notification.create({
         data: {
           userId: userToFollow.id,
-          type: 'FOLLOW',
+          type: 'FOLLOW_REQUEST',
           actorId: followerId
         }
       })
 
-      res.json({
+      return res.json({
         success: true,
-        message: 'Followed successfully',
-        data: { isFollowing: true }
+        message: 'Follow request sent',
+        data: { isFollowing: false, requested: true }
       })
     }
+
+    // Public account: follow directly
+    await prisma.follow.create({
+      data: {
+        followerId: followerId,
+        followingId: userToFollow.id
+      }
+    })
+
+    // Update follower counts
+    await prisma.user.update({
+      where: { id: followerId },
+      data: { followingCount: { increment: 1 } }
+    })
+
+    await prisma.user.update({
+      where: { id: userToFollow.id },
+      data: { followersCount: { increment: 1 } }
+    })
+
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        userId: userToFollow.id,
+        type: 'FOLLOW',
+        actorId: followerId
+      }
+    })
+
+    return res.json({
+      success: true,
+      message: 'Followed successfully',
+      data: { isFollowing: true, requested: false }
+    })
   } catch (error) {
     next(error)
   }
@@ -293,7 +339,7 @@ router.get('/suggestions', authenticate, [
   }
 })
 
-// Check if user follows another user
+// Check follow status (following or requested)
 router.get('/:username/follows', authenticate, async (req: AuthRequest, res: any, next: any) => {
   try {
     const { username } = req.params
@@ -317,13 +363,203 @@ router.get('/:username/follows', authenticate, async (req: AuthRequest, res: any
       }
     })
 
-    res.json({
-      success: true,
-      data: { isFollowing: !!follow }
+    const pending = await prisma.followRequest.findUnique({
+      where: {
+        requesterId_targetId: { requesterId: currentUserId, targetId: userToCheck.id }
+      }
     })
+
+    res.json({ success: true, data: { isFollowing: !!follow, requested: pending?.status === 'PENDING' } })
   } catch (error) {
     next(error)
   }
 })
 
 export { router as followRoutes }
+
+// Incoming follow requests (to current user)
+router.get('/requests', authenticate, [
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 })
+], async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      throw createError(errors.array()[0].msg, 400)
+    }
+
+    const userId = req.user!.id
+    const { page = 1, limit = 20 } = req.query as any
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
+
+    const [requests, total] = await Promise.all([
+      prisma.followRequest.findMany({
+        where: { targetId: userId, status: 'PENDING' },
+        include: {
+          requester: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatarUrl: true,
+              isVerified: true,
+              followersCount: true,
+              followingCount: true
+            }
+          }
+        },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.followRequest.count({ where: { targetId: userId, status: 'PENDING' } })
+    ])
+
+    res.json({
+      success: true,
+      data: requests,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Outgoing follow requests (sent by current user)
+router.get('/requests/sent', authenticate, [
+  query('page').optional().isInt({ min: 1 }),
+  query('limit').optional().isInt({ min: 1, max: 100 })
+], async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      throw createError(errors.array()[0].msg, 400)
+    }
+
+    const userId = req.user!.id
+    const { page = 1, limit = 20 } = req.query as any
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
+
+    const [requests, total] = await Promise.all([
+      prisma.followRequest.findMany({
+        where: { requesterId: userId, status: 'PENDING' },
+        include: {
+          target: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              avatarUrl: true,
+              isVerified: true,
+              followersCount: true,
+              followingCount: true
+            }
+          }
+        },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.followRequest.count({ where: { requesterId: userId, status: 'PENDING' } })
+    ])
+
+    res.json({
+      success: true,
+      data: requests,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Approve a follow request
+router.post('/requests/:id/approve', authenticate, async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const userId = req.user!.id
+    const { id } = req.params
+
+    const request = await prisma.followRequest.findUnique({ where: { id } })
+    if (!request) throw createError('Request not found', 404)
+    if (request.targetId !== userId) throw createError('Not authorized', 403)
+    if (request.status !== 'PENDING') throw createError('Request is not pending', 400)
+
+    // Create follow relation
+    await prisma.follow.create({
+      data: { followerId: request.requesterId, followingId: request.targetId }
+    })
+
+    // Update counts
+    await prisma.user.update({ where: { id: request.requesterId }, data: { followingCount: { increment: 1 } } })
+    await prisma.user.update({ where: { id: request.targetId }, data: { followersCount: { increment: 1 } } })
+
+    // Mark request approved
+    await prisma.followRequest.update({ where: { id }, data: { status: 'APPROVED' } })
+
+    // Notify requester
+    await prisma.notification.create({
+      data: { userId: request.requesterId, type: 'FOLLOW_REQUEST_APPROVED', actorId: userId }
+    })
+
+    res.json({ success: true, message: 'Request approved' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Deny a follow request
+router.post('/requests/:id/deny', authenticate, async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const userId = req.user!.id
+    const { id } = req.params
+
+    const request = await prisma.followRequest.findUnique({ where: { id } })
+    if (!request) throw createError('Request not found', 404)
+    if (request.targetId !== userId) throw createError('Not authorized', 403)
+    if (request.status !== 'PENDING') throw createError('Request is not pending', 400)
+
+    await prisma.followRequest.update({ where: { id }, data: { status: 'REJECTED' } })
+
+    res.json({ success: true, message: 'Request denied' })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Remove a follower (target removes requester)
+router.delete('/:username/remove', authenticate, async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const currentUserId = req.user!.id
+    const { username } = req.params
+
+    const userToRemove = await prisma.user.findUnique({ where: { username }, select: { id: true } })
+    if (!userToRemove) throw createError('User not found', 404)
+    if (userToRemove.id === currentUserId) throw createError('Cannot remove yourself', 400)
+
+    const existing = await prisma.follow.findUnique({
+      where: { followerId_followingId: { followerId: userToRemove.id, followingId: currentUserId } }
+    })
+    if (!existing) return res.json({ success: true, message: 'No follower relationship' })
+
+    await prisma.follow.delete({ where: { id: existing.id } })
+
+    await prisma.user.update({ where: { id: userToRemove.id }, data: { followingCount: { decrement: 1 } } })
+    await prisma.user.update({ where: { id: currentUserId }, data: { followersCount: { decrement: 1 } } })
+
+    res.json({ success: true, message: 'Follower removed' })
+  } catch (error) {
+    next(error)
+  }
+})
