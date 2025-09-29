@@ -64,7 +64,7 @@ export interface Like {
 export interface Notification {
   id: number
   userId: number
-  type: 'like' | 'follow' | 'reply' | 'retweet'
+  type: 'like' | 'follow' | 'reply' | 'retweet' | 'follow_request' | 'follow_request_approved'
   actorId: number
   tweetId?: number
   isRead: boolean
@@ -130,6 +130,7 @@ export interface UpdateUserDto {
   bio?: string
   location?: string
   website?: string
+  isPrivate?: boolean
 }
 
 export interface ChangePasswordDto {

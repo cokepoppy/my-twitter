@@ -166,6 +166,10 @@
                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-twitter-blue"></div>
                   </label>
                 </div>
+                <div class="flex justify-between items-center pt-4">
+                  <router-link to="/requests" class="text-sm text-twitter-blue hover:underline">Manage follow requests</router-link>
+                  <button @click="savePrivacySettings" class="twitter-button text-sm">Save Changes</button>
+                </div>
               </div>
             </div>
 
@@ -311,9 +315,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
 const activeTab = ref('account')
+const auth = useAuthStore()
 
 const tabs = [
   { id: 'account', name: 'Account' },
@@ -323,12 +329,12 @@ const tabs = [
 ]
 
 const accountSettings = reactive({
-  username: 'currentuser',
-  email: 'user@example.com',
-  fullName: 'Current User',
-  bio: 'Software developer and tech enthusiast.',
-  location: 'San Francisco, CA',
-  website: 'https://example.com',
+  username: '',
+  email: '',
+  fullName: '',
+  bio: '',
+  location: '',
+  website: '',
 })
 
 const privacySettings = reactive({
@@ -352,9 +358,17 @@ const passwordSettings = reactive({
   confirmPassword: '',
 })
 
-const saveAccountSettings = () => {
-  // Implementation for saving account settings
-  console.log('Saving account settings:', accountSettings)
+const saveAccountSettings = async () => {
+  await auth.updateProfile({
+    fullName: accountSettings.fullName || undefined,
+    bio: accountSettings.bio || undefined,
+    location: accountSettings.location || undefined,
+    website: accountSettings.website || undefined,
+  } as any)
+}
+
+const savePrivacySettings = async () => {
+  await auth.updateProfile({ isPrivate: privacySettings.privateAccount } as any)
 }
 
 const changePassword = () => {
@@ -368,4 +382,20 @@ const changePassword = () => {
   passwordSettings.newPassword = ''
   passwordSettings.confirmPassword = ''
 }
+
+onMounted(async () => {
+  if (!auth.user) {
+    await auth.fetchUser()
+  }
+  if (auth.user) {
+    accountSettings.username = auth.user.username
+    accountSettings.email = auth.user.email
+    accountSettings.fullName = auth.user.fullName || ''
+    accountSettings.bio = auth.user.bio || ''
+    accountSettings.location = auth.user.location || ''
+    accountSettings.website = auth.user.website || ''
+
+    privacySettings.privateAccount = !!auth.user.isPrivate
+  }
+})
 </script>

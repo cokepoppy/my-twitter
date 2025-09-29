@@ -58,4 +58,4 @@ export const createApp = () => {
 
   return app
 }
-
+import 'dotenv/config'

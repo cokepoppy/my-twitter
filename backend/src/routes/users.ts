@@ -82,7 +82,11 @@ router.put('/profile', authenticate, [
   body('website')
     .optional()
     .isURL()
-    .withMessage('Website must be a valid URL')
+    .withMessage('Website must be a valid URL'),
+  body('isPrivate')
+    .optional()
+    .isBoolean()
+    .withMessage('isPrivate must be a boolean')
 ], async (req: AuthRequest, res: any, next: any) => {
   try {
     const errors = validationResult(req)
@@ -90,7 +94,7 @@ router.put('/profile', authenticate, [
       throw createError(errors.array()[0].msg, 400)
     }
 
-    const { fullName, bio, location, website }: UpdateUserDto = req.body
+    const { fullName, bio, location, website, isPrivate }: UpdateUserDto = req.body
     const userId = req.user!.id
 
     const updatedUser = await prisma.user.update({
@@ -99,7 +103,8 @@ router.put('/profile', authenticate, [
         ...(fullName && { fullName }),
         ...(bio !== undefined && { bio }),
         ...(location !== undefined && { location }),
-        ...(website !== undefined && { website })
+        ...(website !== undefined && { website }),
+        ...(isPrivate !== undefined && { isPrivate: Boolean(isPrivate) })
       },
       select: {
         id: true,
@@ -323,6 +328,7 @@ router.get('/:username/following', [
 
 // Search users
 router.get('/search', [
+  optionalAuth,
   query('q')
     .notEmpty()
     .withMessage('Search query is required'),
@@ -334,7 +340,7 @@ router.get('/search', [
     .optional()
     .isInt({ min: 1, max: 100 })
     .withMessage('Limit must be between 1 and 100')
-], async (req: any, res: any, next: any) => {
+], async (req: AuthRequest, res: any, next: any) => {
   try {
     const errors = validationResult(req)
     if (!errors.isEmpty()) {
@@ -395,9 +401,36 @@ router.get('/search', [
       })
     ])
 
+    // If authenticated, enrich with follow status and pending request
+    let enriched = users
+    if (req.user) {
+      const currentUserId = String((req.user as any).id)
+      const ids = users.map((u: any) => String(u.id)).filter(id => id !== currentUserId)
+
+      const [follows, requests] = await Promise.all([
+        prisma.follow.findMany({
+          where: { followerId: currentUserId, followingId: { in: ids } },
+          select: { followingId: true }
+        }),
+        prisma.followRequest.findMany({
+          where: { requesterId: currentUserId, targetId: { in: ids }, status: 'PENDING' },
+          select: { targetId: true }
+        })
+      ])
+
+      const isFollowingSet = new Set(follows.map((f: any) => String(f.followingId)))
+      const requestedSet = new Set(requests.map((r: any) => String(r.targetId)))
+
+      enriched = users.map((u: any) => ({
+        ...u,
+        isFollowing: isFollowingSet.has(String(u.id)),
+        requested: requestedSet.has(String(u.id))
+      }))
+    }
+
     res.json({
       success: true,
-      data: users,
+      data: enriched,
       pagination: {
         page: pageNum,
         limit: limitNum,

@@ -33,12 +33,13 @@
         <h2 class="text-3xl font-bold mb-6">Sign in to My Twitter</h2>
 
         <!-- Error notice (from callback redirect) -->
-        <div v-if="route.query.error" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
-          Google 登录未配置或失败，请联系管理员或检查配置。
+        <div v-if="error" class="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md p-3">
+          {{ error }}
         </div>
 
         <!-- Google Sign In -->
         <button
+          v-if="googleEnabled"
           @click="signInWithGoogle"
           class="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-full py-2.5 px-4 hover:bg-gray-50 transition-colors"
         >
@@ -49,6 +50,9 @@
           />
           <span class="text-sm font-medium">Sign in with Google</span>
         </button>
+        <div v-else class="w-full text-center text-sm text-gray-500 mb-2">
+          Google 登录未配置，已隐藏该选项。
+        </div>
 
         <div class="my-4 flex items-center">
           <div class="flex-1 h-px bg-gray-200" />
@@ -74,13 +78,38 @@
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import axios from 'axios'
+
 const route = useRoute()
+const router = useRouter()
+const googleEnabled = ref(true)
+const error = ref<string | null>(null)
 
 const signInWithGoogle = () => {
-  // Redirect to backend OAuth endpoint (proxied by Vite)
   window.location.href = '/api/auth/google'
 }
+
+onMounted(async () => {
+  try {
+    const res = await axios.get('/api/auth/config')
+    googleEnabled.value = !!res.data?.data?.googleEnabled
+  } catch (_) {
+    googleEnabled.value = false
+  }
+
+  const err = (route.query.error as string | undefined) || undefined
+  const debug = (route.query.debug as string | undefined) || undefined
+  if (err === 'google_disabled') {
+    // Clean the URL noiselessly; Google 登录未配置时不再显示错误
+    router.replace({ path: route.path, query: {} })
+  } else if (err === 'google_login_failed') {
+    error.value = `Google 登录失败，请稍后再试${debug ? `（${decodeURIComponent(debug)}）` : ''}`
+  } else if (err) {
+    error.value = '登录失败，请稍后再试或使用邮箱密码登录。'
+  }
+})
 </script>
 
 <style scoped>

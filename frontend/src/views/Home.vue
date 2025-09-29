@@ -352,7 +352,7 @@
                       <p class="text-sm text-gray-500">@{{ user.username }}</p>
                     </div>
                   </div>
-                  <button class="bg-black text-white text-sm font-bold py-2 px-4 rounded-full hover:bg-gray-800 transition">Follow</button>
+                  <FollowButton :username="user.username" />
                 </div>
               </div>
             </div>
@@ -400,6 +400,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import Avatar from '@/components/Avatar.vue'
 import TweetMedia from '@/components/TweetMedia.vue'
+import FollowButton from '@/components/FollowButton.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -461,11 +462,7 @@ const trends = ref([
   { id: 2, category: 'Sports', title: 'World Cup', tweetsCount: '45.2K' },
   { id: 3, category: 'Entertainment', title: 'New Movie', tweetsCount: '8.9K' },
 ])
-const suggestedUsers = ref([
-  { id: 1, username: 'johndoe', fullName: 'John Doe', avatarUrl: null },
-  { id: 2, username: 'janedoe', fullName: 'Jane Smith', avatarUrl: null },
-  { id: 3, username: 'bobsmith', fullName: 'Bob Johnson', avatarUrl: null },
-])
+const suggestedUsers = ref<any[]>([])
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -708,6 +705,12 @@ onMounted(async () => {
     tweets.value = res.data?.data || []
   } catch (e) {
     // leave empty if API not ready
+  }
+  try {
+    const sug = await axios.get('/api/follows/suggestions', { params: { limit: 3 } })
+    suggestedUsers.value = sug.data?.data || []
+  } catch (_) {
+    suggestedUsers.value = []
   }
 })
 

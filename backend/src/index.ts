@@ -26,3 +26,4 @@ server.listen(PORT, () => {
 })
 
 export { app, io }
+import 'dotenv/config'

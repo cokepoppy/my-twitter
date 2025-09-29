@@ -31,14 +31,16 @@ model User {
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  tweets         Tweet[]     @relation("UserTweets")
-  likes          Like[]
-  sentFollows    Follow[] @relation("UserFollows")
-  receivedFollows Follow[] @relation("UserFollowed")
-  sentMessages   Message[]   @relation("MessageSender")
-  receivedMessages Message[] @relation("MessageReceiver")
-  notifications  Notification[]
-  sentNotifications Notification[] @relation("NotificationActor")
+  tweets               Tweet[]         @relation("UserTweets")
+  likes                Like[]
+  sentFollows          Follow[]        @relation("UserFollows")
+  receivedFollows      Follow[]        @relation("UserFollowed")
+  followRequestsSent   FollowRequest[] @relation("FollowRequestRequester")
+  followRequestsReceived FollowRequest[] @relation("FollowRequestTarget")
+  sentMessages         Message[]       @relation("MessageSender")
+  receivedMessages     Message[]       @relation("MessageReceiver")
+  notifications        Notification[]
+  sentNotifications    Notification[]  @relation("NotificationActor")
 
   @@map("users")
 }

@@ -20,6 +20,7 @@
             type="text"
             placeholder="Search Twitter"
             class="w-full px-4 py-3 pl-12 bg-gray-100 rounded-full focus:outline-none focus:ring-2 focus:ring-twitter-blue focus:bg-white"
+            @keyup.enter="triggerSearch"
           />
           <svg class="absolute left-4 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -31,8 +32,41 @@
     <!-- Main Content -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Sidebar -->
+        <!-- Left Column -->
         <div class="lg:col-span-2 space-y-6">
+          <!-- Search Results -->
+          <div v-if="searchQuery.trim().length > 0" class="bg-white shadow rounded-lg">
+            <div class="p-6 border-b border-gray-200 flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-gray-900">Search results</h2>
+              <div class="text-sm text-gray-500" v-if="searching">Searching…</div>
+            </div>
+            <div v-if="!searching && searchResults.length === 0" class="p-6 text-gray-500">No users found</div>
+            <div v-else class="divide-y divide-gray-200">
+              <div
+                v-for="u in searchResults"
+                :key="u.id"
+                class="p-6 hover:bg-gray-50 transition-colors"
+              >
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-3 cursor-pointer" @click="$router.push(`/profile/${u.username}`)">
+                    <img :src="u.avatarUrl || 'https://via.placeholder.com/48'" :alt="u.username" class="h-12 w-12 rounded-full" />
+                    <div>
+                      <div class="flex items-center space-x-1">
+                        <h3 class="font-semibold text-gray-900">{{ u.fullName }}</h3>
+                        <span v-if="u.isVerified" class="text-blue-500">
+                          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                          </svg>
+                        </span>
+                      </div>
+                      <p class="text-gray-600">@{{ u.username }}</p>
+                    </div>
+                  </div>
+                  <FollowButton :username="u.username" :initial-is-following="!!u.isFollowing" :initial-requested="!!u.requested" />
+                </div>
+              </div>
+            </div>
+          </div>
           <!-- Trends Section -->
           <div class="bg-white shadow rounded-lg">
             <div class="p-6 border-b border-gray-200">
@@ -61,7 +95,7 @@
           </div>
 
           <!-- Who to Follow Section -->
-          <div class="bg-white shadow rounded-lg">
+          <div class="bg-white shadow rounded-lg" v-if="searchQuery.trim().length === 0">
             <div class="p-6 border-b border-gray-200">
               <h2 class="text-lg font-semibold text-gray-900">Who to follow</h2>
             </div>
@@ -90,9 +124,7 @@
                       <p class="text-gray-600">@{{ user.username }}</p>
                     </div>
                   </div>
-                  <button class="twitter-button text-sm py-2 px-4">
-                    Follow
-                  </button>
+                  <FollowButton :username="user.username" />
                 </div>
               </div>
             </div>
@@ -193,10 +225,42 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import axios from 'axios'
+import FollowButton from '@/components/FollowButton.vue'
 import type { Tweet, User } from '@/types'
 
 const searchQuery = ref('')
+const searching = ref(false)
+type SearchUser = User & { isFollowing?: boolean; requested?: boolean }
+const searchResults = ref<SearchUser[]>([])
+
+let timer: any = null
+const triggerSearch = async () => {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    searchResults.value = []
+    return
+  }
+  try {
+    searching.value = true
+    const res = await axios.get('/api/users/search', { params: { q, limit: 20 } })
+    searchResults.value = res.data?.data || []
+  } catch (e) {
+    searchResults.value = []
+  } finally {
+    searching.value = false
+  }
+}
+
+watch(searchQuery, () => {
+  clearTimeout(timer)
+  if (!searchQuery.value.trim()) {
+    searchResults.value = []
+    return
+  }
+  timer = setTimeout(triggerSearch, 300)
+})
 
 const trends = ref([
   { id: 1, category: 'Technology', title: 'Vue 3.4', tweetsCount: '12.5K' },
@@ -206,13 +270,7 @@ const trends = ref([
   { id: 5, category: 'News', title: 'Breaking News', tweetsCount: '15.7K' },
 ])
 
-const suggestedUsers = ref([
-  { id: 1, username: 'johndoe', fullName: 'John Doe', avatarUrl: null, isVerified: true },
-  { id: 2, username: 'janedoe', fullName: 'Jane Smith', avatarUrl: null, isVerified: false },
-  { id: 3, username: 'bobsmith', fullName: 'Bob Johnson', avatarUrl: null, isVerified: true },
-  { id: 4, username: 'alicebrown', fullName: 'Alice Brown', avatarUrl: null, isVerified: false },
-  { id: 5, username: 'charliedev', fullName: 'Charlie Dev', avatarUrl: null, isVerified: true },
-])
+const suggestedUsers = ref<any[]>([])
 
 const popularTweets = ref([
   {
@@ -287,4 +345,17 @@ const formatDate = (dateString: string) => {
 
   return `${diffDays}d`
 }
+
+const fetchSuggestions = async () => {
+  try {
+    const res = await axios.get('/api/follows/suggestions', { params: { limit: 5 } })
+    suggestedUsers.value = res.data?.data || []
+  } catch (_) {
+    suggestedUsers.value = []
+  }
+}
+
+onMounted(() => {
+  fetchSuggestions()
+})
 </script>

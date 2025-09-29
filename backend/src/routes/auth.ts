@@ -250,7 +250,9 @@ router.get('/google', async (req, res, next) => {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID
     if (!clientId) {
-      throw createError('Google OAuth is not configured (GOOGLE_CLIENT_ID missing)', 500)
+      const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+      const redirect = `${frontend.replace(/\/$/, '')}/login-v2?error=google_disabled`
+      return res.redirect(redirect)
     }
 
     const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`
@@ -275,7 +277,13 @@ router.get('/google', async (req, res, next) => {
     }
     res.redirect(url)
   } catch (error) {
-    next(error)
+    try {
+      const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+      const redirect = `${frontend.replace(/\/$/, '')}/login-v2?error=google_login_failed`
+      return res.redirect(redirect)
+    } catch (_) {
+      next(error)
+    }
   }
 })
 
