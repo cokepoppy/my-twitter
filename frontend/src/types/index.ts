@@ -37,6 +37,7 @@ export interface Tweet {
   media?: Media[]
   isLiked?: boolean
   isRetweeted?: boolean
+  originalTweet?: Tweet
 }
 
 export interface Media {

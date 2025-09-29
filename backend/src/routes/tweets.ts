@@ -1,5 +1,8 @@
 import { Router } from 'express'
 import { body, validationResult, query } from 'express-validator'
+import multer from 'multer'
+import path from 'path'
+import fs from 'fs'
 import { authenticate, AuthRequest, optionalAuth } from '../middleware/auth'
 import { createError } from '../middleware/errorHandler'
 import { prisma } from '../config/database'
@@ -7,7 +10,18 @@ import { CreateTweetDto, PaginationQuery } from '../types'
 
 const router = Router()
 
-// Create tweet
+// Helper: parse mentions from content
+const extractMentions = (text: string): string[] => {
+  const set = new Set<string>()
+  const regex = /@([a-zA-Z0-9_]{1,20})/g
+  let m
+  while ((m = regex.exec(text)) !== null) {
+    set.add(m[1])
+  }
+  return Array.from(set)
+}
+
+// Create tweet (supports normal, reply, and quote tweet)
 router.post('/', authenticate, [
   body('content')
     .isLength({ min: 1, max: 280 })
@@ -16,6 +30,11 @@ router.post('/', authenticate, [
     .optional()
     .isUUID()
     .withMessage('Invalid tweet ID for reply')
+    .bail(),
+  body('retweetId')
+    .optional()
+    .isUUID()
+    .withMessage('Invalid tweet ID for quote')
 ], async (req: AuthRequest, res: any, next: any) => {
   try {
     const errors = validationResult(req)
@@ -23,7 +42,7 @@ router.post('/', authenticate, [
       throw createError(errors.array()[0].msg, 400)
     }
 
-    const { content, replyToTweetId }: CreateTweetDto = req.body
+    const { content, replyToTweetId, retweetId } = req.body as any
     const userId = req.user!.id
 
     // If replying to a tweet, verify it exists and get replyToUserId
@@ -41,13 +60,25 @@ router.post('/', authenticate, [
       replyToUserId = parentTweet.userId
     }
 
+    // If quoting a tweet, verify it exists
+    if (retweetId) {
+      const original = await prisma.tweet.findUnique({
+        where: { id: retweetId, isDeleted: false },
+        select: { id: true, userId: true }
+      })
+      if (!original) {
+        throw createError('Original tweet not found', 404)
+      }
+    }
+
     // Create tweet
     const tweet = await prisma.tweet.create({
       data: {
         userId,
         content,
         replyToTweetId,
-        replyToUserId
+        replyToUserId,
+        retweetId: retweetId || undefined
       },
       include: {
         user: {
@@ -60,6 +91,14 @@ router.post('/', authenticate, [
           }
         },
         media: true,
+        originalTweet: {
+          include: {
+            user: {
+              select: { id: true, username: true, fullName: true, avatarUrl: true, isVerified: true }
+            },
+            media: true
+          }
+        },
         _count: {
           select: {
             likes: true,
@@ -84,6 +123,34 @@ router.post('/', authenticate, [
       })
     }
 
+    // If quoting, increment original tweet's retweet count as a combined metric
+    if (retweetId) {
+      await prisma.tweet.update({ where: { id: retweetId }, data: { retweetsCount: { increment: 1 } } })
+    }
+
+    // Notifications
+    // Reply notification
+    if (replyToUserId && replyToUserId !== userId) {
+      await prisma.notification.create({
+        data: { userId: replyToUserId, type: 'REPLY', actorId: userId, tweetId: tweet.id }
+      })
+    }
+    // Mention notifications
+    const mentions = extractMentions(content)
+    if (mentions.length) {
+      const users = await prisma.user.findMany({
+        where: { username: { in: mentions } },
+        select: { id: true, username: true }
+      })
+      await Promise.all(
+        users
+          .filter(u => u.id !== userId)
+          .map(u =>
+            prisma.notification.create({ data: { userId: u.id, type: 'MENTION', actorId: userId, tweetId: tweet.id } })
+          )
+      )
+    }
+
     res.status(201).json({
       success: true,
       message: 'Tweet created successfully',
@@ -94,84 +161,7 @@ router.post('/', authenticate, [
   }
 })
 
-// Get tweet by ID
-router.get('/:id', optionalAuth, async (req: any, res: any, next: any) => {
-  try {
-    const { id } = req.params
-    const currentUserId = req.user?.id
-
-    const tweet = await prisma.tweet.findUnique({
-      where: { id, isDeleted: false },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            fullName: true,
-            avatarUrl: true,
-            isVerified: true,
-            isPrivate: true
-          }
-        },
-        media: true,
-        parentTweet: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                username: true,
-                fullName: true,
-                avatarUrl: true,
-                isVerified: true
-              }
-            }
-          }
-        },
-        _count: {
-          select: {
-            likes: true,
-            retweets: true,
-            replies: true
-          }
-        }
-      }
-    })
-
-    if (!tweet) {
-      throw createError('Tweet not found', 404)
-    }
-
-    // Check if current user liked this tweet
-    let isLiked = false
-    if (currentUserId) {
-      const like = await prisma.like.findUnique({
-        where: {
-          userId_tweetId: {
-            userId: currentUserId,
-            tweetId: id
-          }
-        }
-      })
-      isLiked = !!like
-    }
-
-    // Increment view count
-    await prisma.tweet.update({
-      where: { id },
-      data: { viewsCount: { increment: 1 } }
-    })
-
-    res.json({
-      success: true,
-      data: {
-        ...tweet,
-        isLiked
-      }
-    })
-  } catch (error) {
-    next(error)
-  }
-})
+// Get tweet by ID moved near the bottom to avoid conflicts with specific routes
 
 // Get user's tweets
 router.get('/user/:username', [
@@ -196,6 +186,8 @@ router.get('/user/:username', [
 
     const { username } = req.params
     const { page = 1, limit = 20, type = 'tweets' } = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -245,8 +237,8 @@ router.get('/user/:username', [
                 where: { isDeleted: false }
               }
             },
-            skip: (page - 1) * limit,
-            take: limit,
+            skip: (pageNum - 1) * limitNum,
+            take: limitNum,
             orderBy: { createdAt: 'desc' }
           }),
           prisma.like.count({ where: { userId: user.id } })
@@ -256,10 +248,10 @@ router.get('/user/:username', [
           success: true,
           data: likedTweets.map((like: any) => like.tweet),
           pagination: {
-            page: Number(page),
-            limit: Number(limit),
+            page: pageNum,
+            limit: limitNum,
             total,
-            totalPages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limitNum)
           }
         })
     }
@@ -268,8 +260,8 @@ router.get('/user/:username', [
       prisma.tweet.findMany({
         where: whereClause,
         include: includeClause,
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { createdAt: 'desc' }
       }),
       prisma.tweet.count({ where: whereClause })
@@ -279,10 +271,10 @@ router.get('/user/:username', [
       success: true,
       data: tweets,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
   } catch (error) {
@@ -309,6 +301,8 @@ router.get('/timeline', authenticate, [
 
     const userId = req.user!.id
     const { page = 1, limit = 20 } = req.query as any
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
 
     // Get users that the current user follows
     const following = await prisma.follow.findMany({
@@ -336,6 +330,12 @@ router.get('/timeline', authenticate, [
             }
           },
           media: true,
+          originalTweet: {
+            include: {
+              user: { select: { id: true, username: true, fullName: true, avatarUrl: true, isVerified: true } },
+              media: true
+            }
+          },
           parentTweet: {
             include: {
               user: {
@@ -357,8 +357,8 @@ router.get('/timeline', authenticate, [
             }
           }
         },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { createdAt: 'desc' }
       }),
       prisma.tweet.count({
@@ -388,12 +388,118 @@ router.get('/timeline', authenticate, [
       success: true,
       data: tweetsWithLikeStatus,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Get replies for a tweet
+router.get('/:id/replies', [
+  query('page').optional().isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+  query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100')
+], async (req: any, res: any, next: any) => {
+  try {
+    const errors = validationResult(req)
+    if (!errors.isEmpty()) {
+      throw createError(errors.array()[0].msg, 400)
+    }
+    const { id } = req.params
+    const { page = 1, limit = 20 } = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
+    const [replies, total] = await Promise.all([
+      prisma.tweet.findMany({
+        where: { replyToTweetId: id, isDeleted: false },
+        include: {
+          user: { select: { id: true, username: true, fullName: true, avatarUrl: true, isVerified: true } },
+          media: true,
+          _count: { select: { likes: true, retweets: true, replies: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum
+      }),
+      prisma.tweet.count({ where: { replyToTweetId: id, isDeleted: false } })
+    ])
+    res.json({
+      success: true,
+      data: replies,
+      pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) }
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// --- Media upload for a tweet ---
+const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads')
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true })
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname)
+    const name = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
+    cb(null, name)
+  }
+})
+
+const maxSize = Number(process.env.MAX_FILE_SIZE || 10 * 1024 * 1024) // 10MB default
+const upload = multer({
+  storage,
+  limits: { fileSize: maxSize, files: 4 },
+  fileFilter: (_req, file, cb) => {
+    const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const videoTypes = ['video/mp4', 'video/webm']
+    if (imageTypes.includes(file.mimetype) || videoTypes.includes(file.mimetype)) cb(null, true)
+    else cb(new Error('Unsupported file type'))
+  }
+})
+
+router.post('/:id/media', authenticate, upload.array('files', 4), async (req: AuthRequest, res: any, next: any) => {
+  try {
+    const { id } = req.params
+    const userId = req.user!.id
+    const tweet = await prisma.tweet.findUnique({ where: { id }, select: { userId: true, isDeleted: true } })
+    if (!tweet || tweet.isDeleted) throw createError('Tweet not found', 404)
+    if (tweet.userId !== userId) throw createError('Not allowed to attach media to this tweet', 403)
+
+    const files = (req.files as Express.Multer.File[]) || []
+    if (files.length === 0) throw createError('No files uploaded', 400)
+
+    // Validate rule: max 4 images OR 1 video/gif
+    const images = files.filter(f => f.mimetype.startsWith('image/') && f.mimetype !== 'image/gif')
+    const gifs = files.filter(f => f.mimetype === 'image/gif')
+    const videos = files.filter(f => f.mimetype.startsWith('video/'))
+    if (videos.length + gifs.length > 1) throw createError('Only one video or GIF allowed', 400)
+    if ((videos.length > 0 || gifs.length > 0) && files.length > 1) throw createError('Cannot mix video/GIF with other files', 400)
+    if (images.length > 4) throw createError('Up to 4 images allowed', 400)
+
+    const basePath = '/uploads'
+    const created = await Promise.all(
+      files.map(file => {
+        const ext = path.extname(file.filename).toLowerCase()
+        let fileType: 'image' | 'video' | 'gif' = 'image'
+        if (file.mimetype === 'image/gif' || ext === '.gif') fileType = 'gif'
+        else if (file.mimetype.startsWith('video/')) fileType = 'video'
+        return prisma.media.create({
+          data: {
+            tweetId: id,
+            fileUrl: path.posix.join(basePath, file.filename),
+            fileType,
+            fileSize: file.size
+          }
+        })
+      })
+    )
+
+    res.status(201).json({ success: true, message: 'Media uploaded', data: created })
   } catch (error) {
     next(error)
   }
@@ -589,6 +695,91 @@ router.delete('/:id', authenticate, async (req: AuthRequest, res: any, next: any
     res.json({
       success: true,
       message: 'Tweet deleted successfully'
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+// Get tweet by ID (placed after specific routes to avoid matching conflicts)
+router.get('/:id', optionalAuth, async (req: any, res: any, next: any) => {
+  try {
+    const { id } = req.params
+    const currentUserId = req.user?.id
+
+    const tweet = await prisma.tweet.findUnique({
+      where: { id, isDeleted: false },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            fullName: true,
+            avatarUrl: true,
+            isVerified: true,
+            isPrivate: true
+          }
+        },
+        media: true,
+        originalTweet: {
+          include: {
+            user: { select: { id: true, username: true, fullName: true, avatarUrl: true, isVerified: true } },
+            media: true
+          }
+        },
+        parentTweet: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                fullName: true,
+                avatarUrl: true,
+                isVerified: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            likes: true,
+            retweets: true,
+            replies: true
+          }
+        }
+      }
+    })
+
+    if (!tweet) {
+      throw createError('Tweet not found', 404)
+    }
+
+    // Check if current user liked this tweet
+    let isLiked = false
+    if (currentUserId) {
+      const like = await prisma.like.findUnique({
+        where: {
+          userId_tweetId: {
+            userId: currentUserId,
+            tweetId: id
+          }
+        }
+      })
+      isLiked = !!like
+    }
+
+    // Increment view count
+    await prisma.tweet.update({
+      where: { id },
+      data: { viewsCount: { increment: 1 } }
+    })
+
+    res.json({
+      success: true,
+      data: {
+        ...tweet,
+        isLiked
+      }
     })
   } catch (error) {
     next(error)

@@ -111,21 +111,143 @@
             <div class="flex gap-3">
               <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="48" />
               <div class="flex-1">
-                <textarea v-model="tweetContent" class="w-full text-xl placeholder-gray-500 resize-none focus:outline-none mb-2" placeholder="What is happening?!" rows="3" maxlength="280"></textarea>
-                <div class="flex items-center justify-between">
+                <textarea ref="composerRef" v-model="tweetContent" class="w-full text-xl placeholder-gray-500 resize-none focus:outline-none mb-2" placeholder="What is happening?!" rows="3" maxlength="280"></textarea>
+                <!-- Attachments preview -->
+                <div v-if="attachments.length" class="mb-2">
+                  <div v-if="isImageMode" class="grid grid-cols-2 gap-2">
+                    <div v-for="(att, idx) in attachments" :key="idx" class="relative rounded-lg overflow-hidden">
+                      <img :src="att.url" class="w-full h-40 object-cover" />
+                      <button @click="removeAttachment(idx)" class="absolute top-2 right-2 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center">×</button>
+                    </div>
+                  </div>
+                  <div v-else class="relative rounded-lg overflow-hidden">
+                    <video v-if="attachments[0]" :src="attachments[0].url" controls class="w-full max-h-72"></video>
+                    <button @click="removeAttachment(0)" class="absolute top-2 right-2 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center">×</button>
+                  </div>
+                </div>
+                <!-- Poll builder -->
+                <div v-if="showPoll" class="mb-3 rounded-xl border border-[color:var(--twitter-border)] p-3 bg-gray-50">
+                  <div class="flex items-center justify-between mb-2">
+                    <div class="font-semibold text-gray-700">Poll</div>
+                    <button class="text-sm text-gray-500 hover:underline" @click="togglePoll">Remove</button>
+                  </div>
+                  <div class="space-y-2">
+                    <div v-for="(opt, i) in pollOptions" :key="i" class="flex items-center gap-2">
+                      <input
+                        v-model="pollOptions[i]"
+                        :placeholder="`Choice ${i + 1}`"
+                        maxlength="25"
+                        class="flex-1 rounded border px-3 py-2 focus:outline-none"
+                      />
+                      <button
+                        v-if="pollOptions.length > 2 && i >= 2"
+                        @click="removePollOption(i)"
+                        class="text-gray-500 hover:text-gray-700"
+                        title="Remove option"
+                        aria-label="Remove option"
+                      >×</button>
+                    </div>
+                    <div class="flex items-center justify-between">
+                      <button
+                        class="text-sm text-blue-600 disabled:text-gray-400"
+                        @click="addPollOption"
+                        :disabled="pollOptions.length >= 4"
+                      >Add option</button>
+                      <div class="flex items-center gap-2 text-sm text-gray-600">
+                        <label class="text-gray-500">Duration</label>
+                        <input type="number" min="0" max="7" v-model.number="pollDays" class="w-14 rounded border px-2 py-1" aria-label="Poll days" />
+                        <span>days</span>
+                        <input type="number" min="0" max="23" v-model.number="pollHours" class="w-14 rounded border px-2 py-1" aria-label="Poll hours" />
+                        <span>hours</span>
+                        <input type="number" min="0" max="59" v-model.number="pollMinutes" class="w-14 rounded border px-2 py-1" aria-label="Poll minutes" />
+                        <span>minutes</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- Quote preview -->
+                <div v-if="quoteTweetData" class="mb-2 border rounded-xl p-3 text-sm text-gray-700 bg-gray-50">
+                  <div class="font-semibold">Quoting @{{ quoteTweetData.user?.username }}</div>
+                  <div class="line-clamp-3 whitespace-pre-wrap">{{ quoteTweetData.content }}</div>
+                  <button @click="clearQuote" class="mt-1 text-xs text-gray-500 hover:underline">Remove quote</button>
+                </div>
+                <div class="flex items-center justify-between relative">
                   <div class="flex items-center text-twitter-blue space-x-1.5">
-                    <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50" title="Media" aria-label="Add media"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21 5H3a2 2 0 00-2 2v10a2 2 0 002 2h18a2 2 0 002-2V7a2 2 0 00-2-2zm-1 11l-4.5-6-3.5 4.67L9 12l-5 7h16z"/></svg></button>
-                    <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50" title="GIF" aria-label="Add GIF"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v14H3V5zm4 9h2v-1H8V8H6v6h1zm4-6v6h2v-2h1v-2h-1V9h2V8h-4zm6 0v6h2V8h-2z"/></svg></button>
-                    <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50" title="Poll" aria-label="Add poll"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 11h2v7H7v-7zm4-4h2v11h-2V7zm4 6h2v5h-2v-5z"/></svg></button>
-                    <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50" title="Emoji" aria-label="Add emoji"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-4 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm8 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM7.07 14.93a6 6 0 009.86 0l-1.41-1.41a4 4 0 01-7.04 0l-1.41 1.41z"/></svg></button>
-                    <button class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50" title="Schedule" aria-label="Schedule"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 00-3 3v12a3 3 0 003 3h14a3 3 0 003-3V7a3 3 0 00-3-3zm1 15a1 1 0 01-1 1H5a1 1 0 01-1-1V10h16v9z"/></svg></button>
+                    <button
+                      @click="triggerFile"
+                      :class="['flex items-center justify-center w-9 h-9 rounded-full', canAddMedia ? 'hover:bg-blue-50' : 'text-blue-300 cursor-not-allowed']"
+                      title="Media"
+                      aria-label="Add media"
+                      :aria-disabled="!canAddMedia"
+                    >
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M21 5H3a2 2 0 00-2 2v10a2 2 0 002 2h18a2 2 0 002-2V7a2 2 0 00-2-2zm-1 11l-4.5-6-3.5 4.67L9 12l-5 7h16z"/></svg>
+                    </button>
+                    <input ref="fileInput" type="file" class="hidden" multiple :accept="currentAccept" @change="onFilesSelected" />
+                    <button
+                      @click="triggerGif"
+                      :class="['flex items-center justify-center w-9 h-9 rounded-full', canAddMedia ? 'hover:bg-blue-50' : 'text-blue-300 cursor-not-allowed']"
+                      title="GIF"
+                      aria-label="Add GIF"
+                      :aria-disabled="!canAddMedia"
+                    >
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v14H3V5zm4 9h2v-1H8V8H6v6h1zm4-6v6h2v-2h1v-2h-1V9h2V8h-4zm6 0v6h2V8h-2z"/></svg>
+                    </button>
+                    <button
+                      @click="togglePoll"
+                      :class="['flex items-center justify-center w-9 h-9 rounded-full', canAddPoll ? 'hover:bg-blue-50' : 'text-blue-300 cursor-not-allowed']"
+                      title="Poll"
+                      aria-label="Add poll"
+                      :aria-pressed="showPoll ? 'true' : 'false'"
+                      :aria-disabled="!canAddPoll"
+                    >
+                      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 11h2v7H7v-7zm4-4h2v11h-2V7zm4 6h2v5h-2v-5z"/></svg>
+                    </button>
+                    <div class="relative" ref="emojiRef">
+                      <button
+                        @click="toggleEmojiPicker"
+                        class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50"
+                        title="Emoji"
+                        aria-label="Add emoji"
+                        :aria-expanded="showEmoji ? 'true' : 'false'"
+                      >
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-4 8a1.5 1.5 0 110-3 1.5 1.5 0 010 3zm8 0a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM7.07 14.93a6 6 0 009.86 0l-1.41-1.41a4 4 0 01-7.04 0l-1.41 1.41z"/></svg>
+                      </button>
+                      <div v-if="showEmoji" class="absolute z-30 mt-1 w-60 rounded-lg border bg-white p-2 shadow">
+                        <div class="grid grid-cols-8 gap-1 text-xl">
+                          <button v-for="(emo, i) in emojiList" :key="i" @click="insertEmoji(emo)" class="p-1 hover:bg-gray-100 rounded" :aria-label="`Insert ${emo}`">{{ emo }}</button>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="relative" ref="scheduleRef">
+                      <button
+                        @click="toggleSchedule"
+                        class="flex items-center justify-center w-9 h-9 rounded-full hover:bg-blue-50"
+                        title="Schedule"
+                        aria-label="Schedule"
+                        :aria-expanded="showSchedule ? 'true' : 'false'"
+                      >
+                        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 00-3 3v12a3 3 0 003 3h14a3 3 0 003-3V7a3 3 0 00-3-3zm1 15a1 1 0 01-1 1H5a1 1 0 01-1-1V10h16v9z"/></svg>
+                      </button>
+                      <div v-if="showSchedule" class="absolute z-30 mt-1 w-72 rounded-lg border bg-white p-3 shadow">
+                        <div class="font-semibold text-gray-700 mb-2">Schedule post</div>
+                        <input type="datetime-local" v-model="scheduledAt" class="w-full rounded border px-3 py-2 mb-2" />
+                        <div class="flex justify-end gap-2">
+                          <button class="text-sm text-gray-500 hover:underline" @click="clearSchedule">Clear</button>
+                          <button class="text-sm text-blue-600" @click="applySchedule">Set</button>
+                        </div>
+                      </div>
+                    </div>
                     <button class="flex items-center justify-center w-9 h-9 rounded-full text-blue-300 cursor-not-allowed" title="Location" aria-label="Location" aria-disabled="true"><svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a7 7 0 00-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 00-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg></button>
                   </div>
                   <div class="flex items-center gap-3">
-                    <span class="text-sm text-gray-500">{{ 280 - tweetContent.length }}</span>
-                    <button @click="postTweet" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full disabled:opacity-50" :disabled="!tweetContent.trim()">Post</button>
+                    <div v-if="scheduledAtLabel" class="text-xs text-gray-500">Scheduled: {{ scheduledAtLabel }}</div>
+                    <span class="text-sm" :class="remainingChars < 0 ? 'text-red-500' : 'text-gray-500'">{{ remainingChars }}</span>
+                    <button @click="postTweet" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-full disabled:opacity-50 disabled:cursor-not-allowed" :disabled="posting || !canSubmit || remainingChars < 0">
+                      {{ posting ? (isScheduling ? 'Scheduling…' : 'Posting…') : (isScheduling ? 'Schedule' : 'Post') }}
+                    </button>
                   </div>
                 </div>
+                <p v-if="postError" class="mt-2 text-sm text-red-600">{{ postError }}</p>
               </div>
             </div>
           </div>
@@ -145,16 +267,31 @@
                     </button>
                   </div>
                   <div class="mt-1 whitespace-pre-wrap break-words leading-5">{{ tweet.content }}</div>
-                  <TweetMedia v-if="tweet.media && tweet.media.length" :media="tweet.media" />
+                  <!-- Quote original tweet preview -->
+                  <div v-if="tweet.retweetId && tweet.originalTweet" class="mt-2 border rounded-xl p-3 bg-gray-50">
+                    <div class="text-sm text-gray-700">
+                      <span class="font-semibold">@{{ tweet.originalTweet.user?.username }}</span>
+                    </div>
+                    <div class="text-sm whitespace-pre-wrap break-words">{{ tweet.originalTweet.content }}</div>
+                  </div>
+                  <!-- Images/GIFs -->
+                  <TweetMedia
+                    v-if="tweet.media && tweet.media.filter((m: any) => m.fileType !== 'video').length"
+                    :media="tweet.media.filter((m: any) => m.fileType !== 'video').map((m: any) => m.fileUrl)"
+                  />
+                  <!-- Single Video -->
+                  <div v-if="tweet.media && tweet.media.some((m: any) => m.fileType === 'video')" class="mt-2 overflow-hidden rounded-2xl border border-[color:var(--twitter-border)]">
+                    <video :src="tweet.media.find((m: any) => m.fileType === 'video')?.fileUrl" controls class="w-full max-h-[560px] bg-black"></video>
+                  </div>
                   <div class="mt-1 text-gray-500 text-[13px]" v-if="tweet.viewsCount">{{ tweet.viewsCount }} views</div>
                   <div class="mt-1 flex items-center justify-between text-gray-500 max-w-[520px]">
-                    <button class="group flex items-center gap-1">
+                    <button class="group flex items-center gap-1" @click="onReply(tweet)">
                       <span class="p-2 rounded-full group-hover:bg-blue-50">
                         <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20 8H4v11h16V8zM7 6h10V5a1 1 0 00-1-1H8a1 1 0 00-1 1v1z"/></svg>
                       </span>
                       <span class="text-sm group-hover:text-blue-500">{{ tweet.repliesCount || 0 }}</span>
                     </button>
-                    <button class="group flex items-center gap-1">
+                    <button class="group flex items-center gap-1" @click="onQuote(tweet)">
                       <span class="p-2 rounded-full group-hover:bg-green-50">
                         <svg class="w-5 h-5 text-gray-500 group-hover:text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg>
                       </span>
@@ -257,7 +394,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
@@ -271,7 +408,54 @@ const menuRef = ref<HTMLElement | null>(null)
 const accountAreaRef = ref<HTMLElement | null>(null)
 
 const tweetContent = ref('')
+const composerRef = ref<HTMLTextAreaElement | null>(null)
+const posting = ref(false)
+const postError = ref('')
+const remainingChars = computed(() => 280 - tweetContent.value.length)
 const tweets = ref<any[]>([])
+const attachments = ref<Array<{ file: File; url: string; type: 'image' | 'video' | 'gif' }>>([])
+const fileInput = ref<HTMLInputElement | null>(null)
+const isImageMode = computed(() => attachments.value.length > 0 && attachments.value[0].type === 'image')
+const defaultAccept = 'image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm'
+const currentAccept = ref<string>(defaultAccept)
+const emojiList = ['😀','😁','😂','🤣','😊','😍','😘','😎','🤔','😅','👏','👍','🔥','💯','🎉','✨','😢','😭','🤯','🙏','🙌','💪','💡','✅','❌','⭐','🌟','🌈','🌙','☀️','🍕','🍔','🥳','🎯','🧠','⚡']
+const showEmoji = ref(false)
+const emojiRef = ref<HTMLElement | null>(null)
+const showPoll = ref(false)
+const pollOptions = ref<string[]>(['',''])
+const pollDays = ref<number>(1)
+const pollHours = ref<number>(0)
+const pollMinutes = ref<number>(0)
+const showSchedule = ref(false)
+const scheduleRef = ref<HTMLElement | null>(null)
+const scheduledAt = ref<string>('')
+const scheduledAtLabel = computed(() => {
+  if (!scheduledAt.value) return ''
+  const dt = new Date(scheduledAt.value)
+  if (isNaN(dt.getTime())) return ''
+  return dt.toLocaleString()
+})
+const isScheduling = computed(() => {
+  if (!scheduledAt.value) return false
+  const dt = new Date(scheduledAt.value)
+  return dt.getTime() > Date.now()
+})
+const hasValidPoll = computed(() => {
+  if (!showPoll.value) return false
+  const vals = pollOptions.value.map(v => v.trim()).filter(Boolean)
+  if (vals.length < 2) return false
+  // duration must be > 0 and <= 7 days
+  const secs = pollDurationSeconds()
+  return secs >= 60 && secs <= 7 * 24 * 3600
+})
+const canAddPoll = computed(() => attachments.value.length === 0)
+const canAddMedia = computed(() => !showPoll.value)
+const canSubmit = computed(() => {
+  // backend requires non-empty content (1..280)
+  return tweetContent.value.trim().length > 0
+})
+const quoteTweetData = ref<any | null>(null)
+const quoteTweetId = computed(() => (quoteTweetData.value ? quoteTweetData.value.id : null))
 const trends = ref([
   { id: 1, category: 'Technology', title: 'Vue 3.4', tweetsCount: '12.5K' },
   { id: 2, category: 'Sports', title: 'World Cup', tweetsCount: '45.2K' },
@@ -301,21 +485,82 @@ const formatDate = (dateString: string) => {
   return `${diffDays}d`
 }
 
-const postTweet = () => {
-  if (!tweetContent.value.trim()) return
+const doPostTweet = async (content: string, files: typeof attachments.value, quoteId: number | null, poll: string[] | null) => {
+  const payload: any = { content }
+  if (quoteId) payload.retweetId = quoteId
+  // Include poll in payload (backend may ignore for now)
+  if (poll && poll.length >= 2) {
+    payload.poll = {
+      options: poll,
+      durationSeconds: pollDurationSeconds()
+    }
+  }
+  const res = await axios.post('/api/tweets', payload)
+  const created = res.data?.data
+  if (!created) throw new Error('Create tweet failed')
+  if (files.length) {
+    const form = new FormData()
+    files.forEach(a => form.append('files', a.file))
+    const up = await axios.post(`/api/tweets/${created.id}/media`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+    created.media = up.data?.data || []
+  }
+  if (payload.poll) {
+    // surface poll client-side so it appears immediately in feed
+    created.poll = payload.poll
+  }
+  return created
+}
 
-  const newTweet = {
-    id: Date.now(),
-    content: tweetContent.value,
-    user: authStore.user,
-    createdAt: new Date().toISOString(),
-    repliesCount: 0,
-    retweetsCount: 0,
-    likesCount: 0,
+const postTweet = async () => {
+  if (!canSubmit.value || remainingChars.value < 0) return
+  postError.value = ''
+  // snapshot current inputs to allow scheduling without later mutations
+  const content = tweetContent.value.trim()
+  const files = [...attachments.value]
+  const quoteId = quoteTweetId.value
+  const poll = hasValidPoll.value ? pollOptions.value.map(v => v.trim()).filter(Boolean) : null
+
+  const scheduleTime = isScheduling.value ? new Date(scheduledAt.value).getTime() : 0
+  const now = Date.now()
+  if (scheduleTime && scheduleTime > now + 1000) {
+    posting.value = true
+    try {
+      const delay = scheduleTime - now
+      setTimeout(async () => {
+        try {
+          const created = await doPostTweet(content, files, quoteId, poll)
+          tweets.value.unshift(created)
+        } catch (err: any) {
+          postError.value = err?.response?.data?.message || err?.message || 'Failed to post scheduled tweet'
+        }
+      }, delay)
+      // clear UI immediately after scheduling
+      tweetContent.value = ''
+      attachments.value = []
+      quoteTweetData.value = null
+      showPoll.value = false
+      pollOptions.value = ['','']
+      scheduledAt.value = ''
+    } finally {
+      posting.value = false
+    }
+    return
   }
 
-  tweets.value.unshift(newTweet)
-  tweetContent.value = ''
+  posting.value = true
+  try {
+    const created = await doPostTweet(content, files, quoteId, poll)
+    tweets.value.unshift(created)
+    tweetContent.value = ''
+    attachments.value = []
+    quoteTweetData.value = null
+    showPoll.value = false
+    pollOptions.value = ['','']
+  } catch (err: any) {
+    postError.value = err?.response?.data?.message || err?.message || 'Failed to post tweet'
+  } finally {
+    posting.value = false
+  }
 }
 
 const scrollToComposer = () => {
@@ -323,52 +568,147 @@ const scrollToComposer = () => {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-onMounted(() => {
+const triggerFile = () => {
+  if (!canAddMedia.value) {
+    postError.value = 'Polls cannot be combined with media'
+    return
+  }
+  currentAccept.value = defaultAccept
+  fileInput.value?.click()
+}
+
+const triggerGif = () => {
+  if (!canAddMedia.value) {
+    postError.value = 'Polls cannot be combined with media'
+    return
+  }
+  currentAccept.value = 'image/gif'
+  fileInput.value?.click()
+}
+
+const onFilesSelected = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (!files.length) return
+  // reset accept back to default after selection
+  currentAccept.value = defaultAccept
+  if (showPoll.value) {
+    postError.value = 'Polls cannot be combined with media'
+    return
+  }
+  const imgs = files.filter(f => f.type.startsWith('image/') && f.type !== 'image/gif')
+  const gifs = files.filter(f => f.type === 'image/gif')
+  const vids = files.filter(f => f.type.startsWith('video/'))
+  if (vids.length + gifs.length > 1) {
+    postError.value = 'Only one video or GIF allowed'
+    return
+  }
+  if ((vids.length > 0 || gifs.length > 0) && files.length > 1) {
+    postError.value = 'Cannot mix video/GIF with other files'
+    return
+  }
+  if (imgs.length > 4) {
+    postError.value = 'Up to 4 images allowed'
+    return
+  }
+  attachments.value = files.map(f => ({
+    file: f,
+    url: URL.createObjectURL(f),
+    type: f.type === 'image/gif' ? 'gif' : f.type.startsWith('video/') ? 'video' : 'image'
+  }))
+}
+
+const removeAttachment = (idx: number) => {
+  attachments.value.splice(idx, 1)
+}
+
+const onQuote = (tweet: any) => {
+  quoteTweetData.value = tweet
+  scrollToComposer()
+}
+
+const clearQuote = () => {
+  quoteTweetData.value = null
+}
+
+const onReply = (tweet: any) => {
+  router.push(`/tweet/${tweet.id}`)
+}
+
+// Emoji
+const toggleEmojiPicker = () => {
+  showEmoji.value = !showEmoji.value
+}
+const insertEmoji = (emo: string) => {
+  const el = composerRef.value
+  if (!el) {
+    tweetContent.value += emo
+  } else {
+    const start = el.selectionStart || 0
+    const end = el.selectionEnd || 0
+    tweetContent.value = tweetContent.value.slice(0, start) + emo + tweetContent.value.slice(end)
+    // move caret
+    nextTick(() => {
+      const pos = start + emo.length
+      el.setSelectionRange(pos, pos)
+      el.focus()
+    })
+  }
+  showEmoji.value = false
+}
+
+// Poll
+const togglePoll = () => {
+  if (!canAddPoll.value) return
+  showPoll.value = !showPoll.value
+  if (showPoll.value) {
+    attachments.value = []
+  } else {
+    pollOptions.value = ['','']
+  }
+}
+const addPollOption = () => {
+  if (pollOptions.value.length < 4) pollOptions.value.push('')
+}
+const removePollOption = (i: number) => {
+  if (pollOptions.value.length > 2) pollOptions.value.splice(i, 1)
+}
+const pollDurationSeconds = () => {
+  const d = Math.max(0, Math.min(7, pollDays.value || 0))
+  const h = Math.max(0, Math.min(23, pollHours.value || 0))
+  const m = Math.max(0, Math.min(59, pollMinutes.value || 0))
+  return d * 86400 + h * 3600 + m * 60
+}
+
+// Schedule
+const toggleSchedule = () => {
+  showSchedule.value = !showSchedule.value
+}
+const clearSchedule = () => {
+  scheduledAt.value = ''
+  showSchedule.value = false
+}
+const applySchedule = () => {
+  // ensure future time
+  if (scheduledAt.value) {
+    const dt = new Date(scheduledAt.value)
+    if (isNaN(dt.getTime()) || dt.getTime() <= Date.now()) {
+      postError.value = 'Please choose a future time'
+      return
+    }
+  }
+  showSchedule.value = false
+}
+
+onMounted(async () => {
   authStore.initialize()
   document.addEventListener('click', onDocumentClick)
-
-  // Mock tweets data
-  tweets.value = [
-    {
-      id: 1,
-      content: 'Just started working on my new Twitter clone project! 🚀 #vuejs #twitter',
-      user: {
-        id: 1,
-        username: 'devuser',
-        fullName: 'Dev User',
-        avatarUrl: null,
-        verified: true,
-      },
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      repliesCount: 5,
-      retweetsCount: 12,
-      likesCount: 25,
-      viewsCount: '12.4K',
-      media: [
-        'https://picsum.photos/id/40/1200/800',
-      ],
-    },
-    {
-      id: 2,
-      content: 'The weather is amazing today! Perfect for coding outside ☀️',
-      user: {
-        id: 2,
-        username: 'naturelover',
-        fullName: 'Nature Lover',
-        avatarUrl: null,
-      },
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-      repliesCount: 2,
-      retweetsCount: 3,
-      likesCount: 18,
-      viewsCount: '3,201',
-      media: [
-        'https://picsum.photos/id/10/1200/800',
-        'https://picsum.photos/id/20/1200/800',
-        'https://picsum.photos/id/30/1200/800',
-      ],
-    },
-  ]
+  try {
+    const res = await axios.get('/api/tweets/timeline', { params: { page: 1, limit: 20 } })
+    tweets.value = res.data?.data || []
+  } catch (e) {
+    // leave empty if API not ready
+  }
 })
 
 onBeforeUnmount(() => {
@@ -389,6 +729,12 @@ const onDocumentClick = (e: MouseEvent) => {
     !accountAreaRef.value.contains(target)
   ) {
     showAccountMenu.value = false
+  }
+  if (showEmoji.value && emojiRef.value && !emojiRef.value.contains(target)) {
+    showEmoji.value = false
+  }
+  if (showSchedule.value && scheduleRef.value && !scheduleRef.value.contains(target)) {
+    showSchedule.value = false
   }
 }
 

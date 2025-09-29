@@ -33,6 +33,13 @@
               <span class="text-gray-500">{{ formatDate(tweet?.createdAt) }}</span>
             </div>
             <p class="text-gray-900 mb-4">{{ tweet?.content }}</p>
+            <!-- Quote original tweet preview -->
+            <div v-if="tweet?.retweetId && (tweet as any).originalTweet" class="mb-4 border rounded-xl p-3 bg-gray-50">
+              <div class="text-sm text-gray-700">
+                <span class="font-semibold">@{{ (tweet as any).originalTweet.user?.username }}</span>
+              </div>
+              <div class="text-sm whitespace-pre-wrap break-words">{{ (tweet as any).originalTweet.content }}</div>
+            </div>
 
             <!-- Tweet Media -->
             <div v-if="tweet?.media && tweet.media.length > 0" class="mb-4">
@@ -190,8 +197,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
-import type { Tweet, User } from '@/types'
+import type { Tweet } from '@/types'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -221,150 +229,35 @@ const formatDate = (dateString?: string) => {
   return `${diffDays}d`
 }
 
-const postReply = () => {
+const postReply = async () => {
   if (!replyContent.value.trim() || !currentUser) return
-
-  const newReply: Tweet = {
-    id: Date.now(),
-    userId: currentUser.id,
-    content: replyContent.value,
-    replyToTweetId: Number(route.params.id),
-    replyToUserId: tweet.value?.userId,
-    viewsCount: 0,
-    likesCount: 0,
-    retweetsCount: 0,
-    repliesCount: 0,
-    isDeleted: false,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    user: currentUser,
-    media: [],
-    isLiked: false,
-    isRetweeted: false
-  }
-
-  replies.value.unshift(newReply)
-  replyContent.value = ''
-
-  // Update main tweet reply count
-  if (tweet.value) {
-    tweet.value.repliesCount += 1
+  try {
+    const res = await axios.post('/api/tweets', {
+      content: replyContent.value.trim(),
+      replyToTweetId: route.params.id
+    })
+    const created = res.data?.data
+    if (created) {
+      replies.value.unshift(created)
+      replyContent.value = ''
+      if (tweet.value) tweet.value.repliesCount += 1
+    }
+  } catch (e) {
+    // ignore for now; could show toast
   }
 }
 
-onMounted(() => {
-  const tweetId = Number(route.params.id)
-
-  // Mock tweet data
-  tweet.value = {
-    id: tweetId,
-    userId: 1,
-    content: 'Just launched my new project! 🚀 Check it out and let me know what you think! Building this with Vue 3, TypeScript, and Tailwind CSS. The development process has been amazing, and I\'m excited to share it with the community. #vuejs #javascript #webdev #coding',
-    replyToTweetId: undefined,
-    replyToUserId: undefined,
-    retweetId: undefined,
-    viewsCount: 1250,
-    likesCount: 234,
-    retweetsCount: 89,
-    repliesCount: 25,
-    isDeleted: false,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-    user: {
-      id: 1,
-      username: 'johndoe',
-      email: 'john@example.com',
-      fullName: 'John Doe',
-      bio: 'Software developer and tech enthusiast',
-      location: 'San Francisco, CA',
-      website: 'https://johndoe.com',
-      avatarUrl: null,
-      headerUrl: null,
-      followersCount: 1250,
-      followingCount: 856,
-      tweetsCount: 342,
-      isVerified: true,
-      isPrivate: false,
-      createdAt: new Date('2020-01-15').toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    media: [],
-    isLiked: false,
-    isRetweeted: false
+onMounted(async () => {
+  const tweetId = route.params.id as string
+  try {
+    const [tRes, rRes] = await Promise.all([
+      axios.get(`/api/tweets/${tweetId}`),
+      axios.get(`/api/tweets/${tweetId}/replies`, { params: { page: 1, limit: 20 } })
+    ])
+    tweet.value = tRes.data?.data
+    replies.value = rRes.data?.data || []
+  } catch (e) {
+    // ignore errors
   }
-
-  // Mock replies
-  replies.value = [
-    {
-      id: 1,
-      userId: 2,
-      content: 'Congratulations! This looks amazing! 🎉',
-      replyToTweetId: tweetId,
-      replyToUserId: 1,
-      viewsCount: 125,
-      likesCount: 12,
-      retweetsCount: 2,
-      repliesCount: 0,
-      isDeleted: false,
-      createdAt: new Date(Date.now() - 1800000).toISOString(),
-      updatedAt: new Date(Date.now() - 1800000).toISOString(),
-      user: {
-        id: 2,
-        username: 'janedoe',
-        email: 'jane@example.com',
-        fullName: 'Jane Smith',
-        bio: 'Frontend developer',
-        location: 'New York, NY',
-        website: 'https://janesmith.com',
-        avatarUrl: null,
-        headerUrl: null,
-        followersCount: 890,
-        followingCount: 567,
-        tweetsCount: 234,
-        isVerified: true,
-        isPrivate: false,
-        createdAt: new Date('2020-03-20').toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      media: [],
-      isLiked: false,
-      isRetweeted: false
-    },
-    {
-      id: 2,
-      userId: 3,
-      content: 'Great work! I love the design. When can we expect the full release?',
-      replyToTweetId: tweetId,
-      replyToUserId: 1,
-      viewsCount: 98,
-      likesCount: 8,
-      retweetsCount: 1,
-      repliesCount: 0,
-      isDeleted: false,
-      createdAt: new Date(Date.now() - 1200000).toISOString(),
-      updatedAt: new Date(Date.now() - 1200000).toISOString(),
-      user: {
-        id: 3,
-        username: 'bobsmith',
-        email: 'bob@example.com',
-        fullName: 'Bob Johnson',
-        bio: 'Full-stack developer',
-        location: 'Austin, TX',
-        website: 'https://bobsmith.com',
-        avatarUrl: null,
-        headerUrl: null,
-        followersCount: 678,
-        followingCount: 445,
-        tweetsCount: 189,
-        isVerified: false,
-        isPrivate: false,
-        createdAt: new Date('2020-05-10').toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      media: [],
-      isLiked: false,
-      isRetweeted: false
-    }
-  ]
 })
 </script>

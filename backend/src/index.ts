@@ -6,6 +6,7 @@ import compression from 'compression'
 import rateLimit from 'express-rate-limit'
 import { createServer } from 'http'
 import { Server } from 'socket.io'
+import path from 'path'
 
 import { errorHandler } from './middleware/errorHandler'
 import { notFoundHandler } from './middleware/notFoundHandler'
@@ -49,6 +50,10 @@ app.use(morgan('combined'))
 app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(limiter)
+
+// Static uploads
+const uploadDir = process.env.UPLOAD_DIR || path.join(process.cwd(), 'uploads')
+app.use('/uploads', express.static(uploadDir))
 
 // Routes
 app.use('/api/auth', authRoutes)

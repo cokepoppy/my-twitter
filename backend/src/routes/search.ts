@@ -31,6 +31,8 @@ router.get('/', [
     }
 
     const { q, type = 'all', page = 1, limit = 20 } = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
     const currentUserId = req.user?.id
     const searchQuery = q as string
 
@@ -67,8 +69,8 @@ router.get('/', [
             followingCount: true,
             bio: true
           },
-          skip: (page - 1) * limit,
-          take: limit,
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum,
           orderBy: { followersCount: 'desc' }
         }),
         prisma.user.count({
@@ -153,6 +155,12 @@ router.get('/', [
               }
             },
             media: true,
+            originalTweet: {
+              include: {
+                user: { select: { id: true, username: true, fullName: true, avatarUrl: true, isVerified: true } },
+                media: true
+              }
+            },
             parentTweet: {
               include: {
                 user: {
@@ -174,8 +182,8 @@ router.get('/', [
               }
             }
           },
-          skip: (page - 1) * limit,
-          take: limit,
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum,
           orderBy: { createdAt: 'desc' }
         }),
         prisma.tweet.count({
@@ -219,15 +227,15 @@ router.get('/', [
       success: true,
       data: results,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total: type === 'all' ? Math.max(results.totalUsers || 0, results.totalTweets || 0) :
               type === 'users' ? results.totalUsers : results.totalTweets,
         totalPages: type === 'all' ?
-          Math.ceil(Math.max(results.totalUsers || 0, results.totalTweets || 0) / limit) :
+          Math.ceil(Math.max(results.totalUsers || 0, results.totalTweets || 0) / limitNum) :
           type === 'users' ?
-          Math.ceil((results.totalUsers || 0) / limit) :
-          Math.ceil((results.totalTweets || 0) / limit)
+          Math.ceil((results.totalUsers || 0) / limitNum) :
+          Math.ceil((results.totalTweets || 0) / limitNum)
       }
     })
   } catch (error) {
@@ -346,6 +354,8 @@ router.post('/advanced', [
 
     const { query: searchQuery, filters } = req.body
     const { page = 1, limit = 20 } = req.query as any
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
     const currentUserId = req.user?.id
 
     if (!searchQuery) {
@@ -443,8 +453,8 @@ router.post('/advanced', [
             }
           }
         },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { createdAt: 'desc' }
       }),
       prisma.tweet.count({ where: whereClause })
@@ -473,10 +483,10 @@ router.post('/advanced', [
       success: true,
       data: tweetsWithLikeStatus,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
   } catch (error) {

@@ -202,6 +202,8 @@ router.get('/:username/followers', [
 
     const { username } = req.params
     const { page = 1, limit = 20 }: PaginationQuery = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -226,8 +228,8 @@ router.get('/:username/followers', [
             }
           }
         },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { createdAt: 'desc' }
       }),
       prisma.follow.count({
@@ -239,10 +241,10 @@ router.get('/:username/followers', [
       success: true,
       data: followers.map((follow: any) => follow.follower),
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
   } catch (error) {
@@ -269,6 +271,8 @@ router.get('/:username/following', [
 
     const { username } = req.params
     const { page = 1, limit = 20 }: PaginationQuery = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
 
     const user = await prisma.user.findUnique({
       where: { username },
@@ -293,8 +297,8 @@ router.get('/:username/following', [
             }
           }
         },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { createdAt: 'desc' }
       }),
       prisma.follow.count({
@@ -306,10 +310,10 @@ router.get('/:username/following', [
       success: true,
       data: following.map((follow: any) => follow.following),
       pagination: {
-        page,
-        limit,
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
   } catch (error) {
@@ -338,6 +342,8 @@ router.get('/search', [
     }
 
     const { q, page = 1, limit = 20 } = req.query
+    const pageNum = Math.max(1, Number(page) || 1)
+    const limitNum = Math.max(1, Math.min(100, Number(limit) || 20))
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -365,8 +371,8 @@ router.get('/search', [
           isVerified: true,
           followersCount: true
         },
-        skip: (page - 1) * limit,
-        take: limit,
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
         orderBy: { followersCount: 'desc' }
       }),
       prisma.user.count({
@@ -393,10 +399,10 @@ router.get('/search', [
       success: true,
       data: users,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
+        page: pageNum,
+        limit: limitNum,
         total,
-        totalPages: Math.ceil(total / limit)
+        totalPages: Math.ceil(total / limitNum)
       }
     })
   } catch (error) {
