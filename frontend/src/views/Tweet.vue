@@ -32,6 +32,12 @@
               <span class="text-gray-500">·</span>
               <span class="text-gray-500">{{ formatDate(tweet?.createdAt) }}</span>
             </div>
+            <div v-if="tweet?.replyToTweetId && (tweet as any).parentTweet && (tweet as any).parentTweet.user" class="text-sm text-gray-600 mb-1">
+              Replying to
+              <router-link :to="`/profile/${(tweet as any).parentTweet.user.username}`" class="text-twitter-blue hover:underline">
+                @{{ (tweet as any).parentTweet.user.username }}
+              </router-link>
+            </div>
             <p class="text-gray-900 mb-4">{{ tweet?.content }}</p>
             <!-- Quote original tweet preview -->
             <div v-if="tweet?.retweetId && (tweet as any).originalTweet" class="mb-4 border rounded-xl p-3 bg-gray-50">
@@ -165,25 +171,47 @@
                 <span class="text-gray-500">·</span>
                 <span class="text-gray-500">{{ formatDate(reply.createdAt) }}</span>
               </div>
+              <div class="text-sm text-gray-600 mb-1">
+                Replying to
+                <router-link v-if="tweet" :to="`/profile/${tweet.user.username}`" class="text-twitter-blue hover:underline">
+                  @{{ tweet.user.username }}
+                </router-link>
+              </div>
               <p class="text-gray-900 mb-3">{{ reply.content }}</p>
-              <div class="flex items-center space-x-6">
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-twitter-blue">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                  </svg>
-                  <span class="text-xs">{{ reply.repliesCount || 0 }}</span>
+              <div class="flex items-center justify-between text-gray-500 max-w-[520px]">
+                <button class="group flex items-center gap-1" @click="onReplyClick(reply)">
+                  <span class="p-2 rounded-full group-hover:bg-blue-50">
+                    <svg class="w-4 h-4 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M20 8H4v11h16V8zM7 6h10V5a1 1 0 00-1-1H8a1 1 0 00-1 1v1z"/></svg>
+                  </span>
+                  <span class="text-xs group-hover:text-blue-500">{{ reply.repliesCount || 0 }}</span>
                 </button>
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-green-500">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-                  </svg>
-                  <span class="text-xs">{{ reply.retweetsCount || 0 }}</span>
+                <div class="relative">
+                  <button class="group flex items-center gap-1" @click.stop="toggleRetweetMenuReply(reply)">
+                    <span class="p-2 rounded-full group-hover:bg-green-50">
+                      <svg class="w-4 h-4" :class="reply.isRetweeted ? 'text-green-600' : 'text-gray-500 group-hover:text-green-600'" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg>
+                    </span>
+                    <span class="text-xs" :class="reply.isRetweeted ? 'text-green-600' : 'group-hover:text-green-600'">{{ reply.retweetsCount || 0 }}</span>
+                  </button>
+                  <div v-if="retweetMenuFor === reply.id" class="absolute z-20 mt-1 w-36 bg-white border rounded-xl shadow-lg">
+                    <button @click.stop="retweetReply(reply)" class="w-full text-left px-4 py-2 hover:bg-gray-100">Retweet</button>
+                    <button @click.stop="onQuoteClick(reply)" class="w-full text-left px-4 py-2 hover:bg-gray-100">Quote</button>
+                  </div>
+                </div>
+                <button class="group flex items-center gap-1" @click="toggleLikeReply(reply)">
+                  <span class="p-2 rounded-full group-hover:bg-pink-50">
+                    <svg class="w-4 h-4" :class="reply.isLiked ? 'text-pink-500' : 'text-gray-500 group-hover:text-pink-500'" viewBox="0 0 24 24" fill="currentColor"><path d="M12.1 8.64l-.1.1-.11-.11C9.14 5.9 4.6 7.24 4.6 10.8c0 2.35 2.58 4.38 6.55 8.05l.75.67.75-.67c3.97-3.67 6.55-5.7 6.55-8.05 0-3.56-4.54-4.9-7.4-2.16z"/></svg>
+                  </span>
+                  <span class="text-xs" :class="reply.isLiked ? 'text-pink-500' : 'group-hover:text-pink-500'">{{ reply.likesCount || 0 }}</span>
                 </button>
-                <button class="flex items-center space-x-1 text-gray-500 hover:text-red-500">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                  </svg>
-                  <span class="text-xs">{{ reply.likesCount || 0 }}</span>
+                <button class="group flex items-center gap-1" @click="shareReply(reply)">
+                  <span class="p-2 rounded-full group-hover:bg-blue-50">
+                    <svg class="w-4 h-4 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"/></svg>
+                  </span>
+                </button>
+                <button class="group flex items-center gap-1" @click="toggleBookmarkReply(reply)">
+                  <span class="p-2 rounded-full group-hover:bg-yellow-50">
+                    <svg class="w-4 h-4" :class="reply.isBookmarked ? 'text-yellow-600' : 'text-gray-500 group-hover:text-yellow-600'" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"/></svg>
+                  </span>
                 </button>
               </div>
             </div>
@@ -207,6 +235,8 @@ const authStore = useAuthStore()
 const tweet = ref<Tweet | null>(null)
 const replies = ref<Tweet[]>([])
 const replyContent = ref('')
+const retweetMenuFor = ref<any | null>(null)
+const bookmarks = ref<Set<string>>(new Set())
 
 const currentUser = authStore.user
 
@@ -249,15 +279,83 @@ const postReply = async () => {
 
 onMounted(async () => {
   const tweetId = route.params.id as string
+  loadBookmarks()
   try {
     const [tRes, rRes] = await Promise.all([
       axios.get(`/api/tweets/${tweetId}`),
       axios.get(`/api/tweets/${tweetId}/replies`, { params: { page: 1, limit: 20 } })
     ])
     tweet.value = tRes.data?.data
-    replies.value = rRes.data?.data || []
+    replies.value = (rRes.data?.data || []).map((r: any) => ({ ...r, isBookmarked: bookmarks.value.has(String(r.id)) }))
   } catch (e) {
     // ignore errors
   }
 })
+
+// Actions for replies
+const toggleRetweetMenuReply = (reply: any) => {
+  retweetMenuFor.value = retweetMenuFor.value === reply.id ? null : reply.id
+}
+
+const retweetReply = async (reply: any) => {
+  try {
+    await axios.post(`/api/tweets/${reply.id}/retweet`)
+    reply.isRetweeted = !reply.isRetweeted
+    const cur = Number(reply.retweetsCount || 0)
+    reply.retweetsCount = cur + (reply.isRetweeted ? 1 : -1)
+  } catch (_) {
+    // noop
+  } finally {
+    retweetMenuFor.value = null
+  }
+}
+
+const toggleLikeReply = async (reply: any) => {
+  try {
+    await axios.post(`/api/tweets/${reply.id}/like`)
+    reply.isLiked = !reply.isLiked
+    const cur = Number(reply.likesCount || 0)
+    reply.likesCount = cur + (reply.isLiked ? 1 : -1)
+  } catch (_) {
+    // noop
+  }
+}
+
+const shareReply = async (reply: any) => {
+  const url = `${window.location.origin}/tweet/${reply.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+  } catch (_) {
+    window.prompt('Copy link to reply:', url)
+  }
+}
+
+const onReplyClick = (reply: any) => {
+  // navigate to reply detail
+  window.location.href = `/tweet/${reply.id}`
+}
+
+const loadBookmarks = () => {
+  try {
+    const raw = localStorage.getItem('bookmarks')
+    const arr = raw ? JSON.parse(raw) : []
+    bookmarks.value = new Set(arr)
+  } catch (_) {
+    bookmarks.value = new Set()
+  }
+}
+const saveBookmarks = () => {
+  try { localStorage.setItem('bookmarks', JSON.stringify(Array.from(bookmarks.value))) } catch (_) {}
+}
+const toggleBookmarkReply = (reply: any) => {
+  const id = String(reply.id)
+  if (bookmarks.value.has(id)) {
+    bookmarks.value.delete(id)
+    reply.isBookmarked = false
+  } else {
+    bookmarks.value.add(id)
+    reply.isBookmarked = true
+  }
+  saveBookmarks()
+}
 </script>

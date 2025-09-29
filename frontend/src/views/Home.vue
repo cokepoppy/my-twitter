@@ -259,6 +259,9 @@
             </button>
           </div>
 
+          <!-- Reply modal -->
+          <ReplyModal v-if="replyingTo" :tweet="replyingTo" @close="replyingTo=null" @submitted="onReplySubmitted" />
+
           <!-- Feed -->
           <div>
             <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-[color:var(--twitter-border)] px-4 py-3 hover:bg-gray-50 transition">
@@ -272,6 +275,12 @@
                     <button class="ml-auto p-1 rounded-full hover:bg-gray-100">
                       <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
                     </button>
+                  </div>
+                  <div v-if="tweet.replyToTweetId && tweet.parentTweet && tweet.parentTweet.user" class="text-sm text-gray-600">
+                    Replying to
+                    <router-link :to="`/profile/${tweet.parentTweet.user.username}`" class="text-twitter-blue hover:underline">
+                      @{{ tweet.parentTweet.user.username }}
+                    </router-link>
                   </div>
                   <div class="mt-1 whitespace-pre-wrap break-words leading-5">{{ tweet.content }}</div>
                   <!-- Quote original tweet preview -->
@@ -298,26 +307,32 @@
                       </span>
                       <span class="text-sm group-hover:text-blue-500">{{ tweet.repliesCount || 0 }}</span>
                     </button>
-                    <button class="group flex items-center gap-1" @click="onQuote(tweet)">
-                      <span class="p-2 rounded-full group-hover:bg-green-50">
-                        <svg class="w-5 h-5 text-gray-500 group-hover:text-green-600" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg>
-                      </span>
-                      <span class="text-sm group-hover:text-green-600">{{ tweet.retweetsCount || 0 }}</span>
-                    </button>
-                    <button class="group flex items-center gap-1">
+                    <div class="relative">
+                      <button class="group flex items-center gap-1" @click.stop="toggleRetweetMenu(tweet)">
+                        <span class="p-2 rounded-full group-hover:bg-green-50">
+                          <svg class="w-5 h-5" :class="tweet.isRetweeted ? 'text-green-600' : 'text-gray-500 group-hover:text-green-600'" viewBox="0 0 24 24" fill="currentColor"><path d="M7 7h11v3h-2v5H7l2.5-2.5L7 10l-4 4V7h4z"/></svg>
+                        </span>
+                        <span class="text-sm" :class="tweet.isRetweeted ? 'text-green-600' : 'group-hover:text-green-600'">{{ tweet.retweetsCount || 0 }}</span>
+                      </button>
+                      <div v-if="retweetMenuFor === tweet.id" class="absolute z-20 mt-1 w-36 bg-white border rounded-xl shadow-lg">
+                        <button @click.stop="retweet(tweet)" class="w-full text-left px-4 py-2 hover:bg-gray-100">Retweet</button>
+                        <button @click.stop="onQuote(tweet)" class="w-full text-left px-4 py-2 hover:bg-gray-100">Quote</button>
+                      </div>
+                    </div>
+                    <button class="group flex items-center gap-1" @click="toggleLike(tweet)">
                       <span class="p-2 rounded-full group-hover:bg-pink-50">
-                        <svg class="w-5 h-5 text-gray-500 group-hover:text-pink-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12.1 8.64l-.1.1-.11-.11C9.14 5.9 4.6 7.24 4.6 10.8c0 2.35 2.58 4.38 6.55 8.05l.75.67.75-.67c3.97-3.67 6.55-5.7 6.55-8.05 0-3.56-4.54-4.9-7.4-2.16z"/></svg>
+                        <svg class="w-5 h-5" :class="tweet.isLiked ? 'text-pink-500' : 'text-gray-500 group-hover:text-pink-500'" viewBox="0 0 24 24" fill="currentColor"><path d="M12.1 8.64l-.1.1-.11-.11C9.14 5.9 4.6 7.24 4.6 10.8c0 2.35 2.58 4.38 6.55 8.05l.75.67.75-.67c3.97-3.67 6.55-5.7 6.55-8.05 0-3.56-4.54-4.9-7.4-2.16z"/></svg>
                       </span>
-                      <span class="text-sm group-hover:text-pink-500">{{ tweet.likesCount || 0 }}</span>
+                      <span class="text-sm" :class="tweet.isLiked ? 'text-pink-500' : 'group-hover:text-pink-500'">{{ tweet.likesCount || 0 }}</span>
                     </button>
-                    <button class="group flex items-center gap-1">
+                    <button class="group flex items-center gap-1" @click="shareTweet(tweet)">
                       <span class="p-2 rounded-full group-hover:bg-blue-50">
-                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M17.53 7.47l-5-5-5 5 1.06 1.06L11 6.12V18h2V6.12l2.41 2.41 1.12-1.06z"/></svg>
+                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.59l5.7 5.7-1.41 1.42L13 6.41V16h-2V6.41l-3.3 3.3-1.41-1.42L12 2.59zM21 15l-.02 3.51c0 1.38-1.12 2.49-2.5 2.49H5.5C4.11 21 3 19.88 3 18.5V15h2v3.5c0 .28.22.5.5.5h12.98c.28 0 .5-.22.5-.5L19 15h2z"/></svg>
                       </span>
                     </button>
-                    <button class="group flex items-center gap-1">
-                      <span class="p-2 rounded-full group-hover:bg-blue-50">
-                        <svg class="w-5 h-5 text-gray-500 group-hover:text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5v14m-7-7h14"/></svg>
+                    <button class="group flex items-center gap-1" @click="toggleBookmark(tweet)">
+                      <span class="p-2 rounded-full group-hover:bg-yellow-50">
+                        <svg class="w-5 h-5" :class="tweet.isBookmarked ? 'text-yellow-600' : 'text-gray-500 group-hover:text-yellow-600'" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4.5C4 3.12 5.119 2 6.5 2h11C18.881 2 20 3.12 20 4.5v18.44l-8-5.71-8 5.71V4.5zM6.5 4c-.276 0-.5.22-.5.5v14.56l6-4.29 6 4.29V4.5c0-.28-.224-.5-.5-.5h-11z"/></svg>
                       </span>
                     </button>
                   </div>
@@ -411,6 +426,7 @@ import { useAuthStore } from '@/stores/auth'
 import Avatar from '@/components/Avatar.vue'
 import TweetMedia from '@/components/TweetMedia.vue'
 import FollowButton from '@/components/FollowButton.vue'
+import ReplyModal from '@/components/ReplyModal.vue'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -470,11 +486,30 @@ const canSubmit = computed(() => {
 })
 const quoteTweetData = ref<any | null>(null)
 const quoteTweetId = computed(() => (quoteTweetData.value ? quoteTweetData.value.id : null))
+const replyingTo = ref<any | null>(null)
 const trends = ref([
   { id: 1, category: 'Technology', title: 'Vue 3.4', tweetsCount: '12.5K' },
   { id: 2, category: 'Sports', title: 'World Cup', tweetsCount: '45.2K' },
   { id: 3, category: 'Entertainment', title: 'New Movie', tweetsCount: '8.9K' },
 ])
+const retweetMenuFor = ref<any | null>(null)
+const bookmarks = ref<Set<string>>(new Set())
+
+const loadBookmarks = () => {
+  try {
+    const raw = localStorage.getItem('bookmarks')
+    const arr = raw ? JSON.parse(raw) : []
+    bookmarks.value = new Set(arr)
+  } catch (_) {
+    bookmarks.value = new Set()
+  }
+}
+
+const saveBookmarks = () => {
+  try {
+    localStorage.setItem('bookmarks', JSON.stringify(Array.from(bookmarks.value)))
+  } catch (_) {}
+}
 const suggestedUsers = ref<any[]>([])
 const homeSuggOffset = ref(0)
 
@@ -673,7 +708,59 @@ const clearQuote = () => {
 }
 
 const onReply = (tweet: any) => {
-  router.push(`/tweet/${tweet.id}`)
+  replyingTo.value = tweet
+}
+
+// Actions under tweet
+const toggleRetweetMenu = (tweet: any) => {
+  retweetMenuFor.value = retweetMenuFor.value === tweet.id ? null : tweet.id
+}
+
+const retweet = async (tweet: any) => {
+  try {
+    await axios.post(`/api/tweets/${tweet.id}/retweet`)
+    tweet.isRetweeted = !tweet.isRetweeted
+    const cur = Number(tweet.retweetsCount || 0)
+    tweet.retweetsCount = cur + (tweet.isRetweeted ? 1 : -1)
+  } catch (_) {
+    // noop
+  } finally {
+    retweetMenuFor.value = null
+  }
+}
+
+const toggleLike = async (tweet: any) => {
+  try {
+    await axios.post(`/api/tweets/${tweet.id}/like`)
+    tweet.isLiked = !tweet.isLiked
+    const cur = Number(tweet.likesCount || 0)
+    tweet.likesCount = cur + (tweet.isLiked ? 1 : -1)
+  } catch (_) {
+    // noop
+  }
+}
+
+const shareTweet = async (tweet: any) => {
+  const url = `${window.location.origin}/tweet/${tweet.id}`
+  try {
+    await navigator.clipboard.writeText(url)
+    // Optional: toast could be implemented here
+  } catch (_) {
+    // fallback
+    window.prompt('Copy link to tweet:', url)
+  }
+}
+
+const toggleBookmark = (tweet: any) => {
+  const id = String(tweet.id)
+  if (bookmarks.value.has(id)) {
+    bookmarks.value.delete(id)
+    tweet.isBookmarked = false
+  } else {
+    bookmarks.value.add(id)
+    tweet.isBookmarked = true
+  }
+  saveBookmarks()
 }
 
 // Emoji
@@ -744,9 +831,10 @@ const applySchedule = () => {
 onMounted(async () => {
   authStore.initialize()
   document.addEventListener('click', onDocumentClick)
+  loadBookmarks()
   try {
     const res = await axios.get('/api/tweets/timeline', { params: { page: 1, limit: 20 } })
-    tweets.value = res.data?.data || []
+    tweets.value = (res.data?.data || []).map((t: any) => ({ ...t, isBookmarked: bookmarks.value.has(String(t.id)) }))
     topId.value = tweets.value.length ? tweets.value[0].id : null
   } catch (e) {
     // leave empty if API not ready
@@ -797,6 +885,7 @@ const onDocumentClick = (e: MouseEvent) => {
   if (showSchedule.value && scheduleRef.value && !scheduleRef.value.contains(target)) {
     showSchedule.value = false
   }
+  retweetMenuFor.value = null
 }
 
 const goAddAccount = () => {
@@ -812,5 +901,11 @@ const handleLogout = async () => {
   authStore.logout()
   showAccountMenu.value = false
   router.push('/login-v2')
+}
+
+const onReplySubmitted = (reply: any) => {
+  if (!replyingTo.value) return
+  const t = tweets.value.find((x: any) => x.id === replyingTo.value.id)
+  if (t) t.repliesCount = Number(t.repliesCount || 0) + 1
 }
 </script>

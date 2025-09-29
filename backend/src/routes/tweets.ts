@@ -26,14 +26,15 @@ router.post('/', authenticate, [
   body('content')
     .isLength({ min: 1, max: 280 })
     .withMessage('Tweet content must be between 1 and 280 characters'),
+  // IDs in this project are cuid strings, not UUIDs
   body('replyToTweetId')
     .optional()
-    .isUUID()
+    .isString()
     .withMessage('Invalid tweet ID for reply')
     .bail(),
   body('retweetId')
     .optional()
-    .isUUID()
+    .isString()
     .withMessage('Invalid tweet ID for quote')
 ], async (req: AuthRequest, res: any, next: any) => {
   try {
