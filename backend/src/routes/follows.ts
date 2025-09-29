@@ -291,7 +291,11 @@ router.get('/suggestions', authenticate, [
   query('limit')
     .optional()
     .isInt({ min: 1, max: 20 })
-    .withMessage('Limit must be between 1 and 20')
+    .withMessage('Limit must be between 1 and 20'),
+  query('offset')
+    .optional()
+    .isInt({ min: 0 })
+    .withMessage('Offset must be >= 0')
 ], async (req: AuthRequest, res: any, next: any) => {
   try {
     const errors = validationResult(req)
@@ -300,7 +304,7 @@ router.get('/suggestions', authenticate, [
     }
 
     const userId = req.user!.id
-    const { limit = 10 } = req.query
+    const { limit = 10, offset = 0 } = req.query as any
 
     // Get users that the current user follows
     const following = await prisma.follow.findMany({
@@ -326,7 +330,8 @@ router.get('/suggestions', authenticate, [
         followersCount: true,
         followingCount: true
       },
-      take: Number(limit),
+      skip: Math.max(0, Number(offset) || 0),
+      take: Math.max(1, Math.min(20, Number(limit) || 10)),
       orderBy: { followersCount: 'desc' }
     })
 

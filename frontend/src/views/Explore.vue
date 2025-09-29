@@ -66,6 +66,9 @@
                 </div>
               </div>
             </div>
+            <div v-if="!searching && hasMore" class="p-4 border-t border-gray-100">
+              <button @click="loadMore" class="twitter-button text-sm">Load more</button>
+            </div>
           </div>
           <!-- Trends Section -->
           <div class="bg-white shadow rounded-lg">
@@ -97,7 +100,10 @@
           <!-- Who to Follow Section -->
           <div class="bg-white shadow rounded-lg" v-if="searchQuery.trim().length === 0">
             <div class="p-6 border-b border-gray-200">
-              <h2 class="text-lg font-semibold text-gray-900">Who to follow</h2>
+              <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">Who to follow</h2>
+                <button @click="refreshSuggestions" class="text-sm text-gray-600 hover:text-gray-900">Refresh</button>
+              </div>
             </div>
             <div class="divide-y divide-gray-200">
               <div
@@ -232,6 +238,10 @@ import type { Tweet, User } from '@/types'
 
 const searchQuery = ref('')
 const searching = ref(false)
+const page = ref(1)
+const limit = 20
+const hasMore = ref(false)
+let currentQuery = ''
 type SearchUser = User & { isFollowing?: boolean; requested?: boolean }
 const searchResults = ref<SearchUser[]>([])
 
@@ -240,14 +250,20 @@ const triggerSearch = async () => {
   const q = searchQuery.value.trim()
   if (!q) {
     searchResults.value = []
+    hasMore.value = false
     return
   }
   try {
     searching.value = true
-    const res = await axios.get('/api/users/search', { params: { q, limit: 20 } })
-    searchResults.value = res.data?.data || []
+    currentQuery = q
+    page.value = 1
+    const res = await axios.get('/api/users/search', { params: { q, limit, page: page.value } })
+    const items = res.data?.data || []
+    searchResults.value = items
+    hasMore.value = items.length === limit
   } catch (e) {
     searchResults.value = []
+    hasMore.value = false
   } finally {
     searching.value = false
   }
@@ -257,10 +273,28 @@ watch(searchQuery, () => {
   clearTimeout(timer)
   if (!searchQuery.value.trim()) {
     searchResults.value = []
+    hasMore.value = false
     return
   }
   timer = setTimeout(triggerSearch, 300)
 })
+
+const loadMore = async () => {
+  if (!currentQuery || searching.value) return
+  try {
+    searching.value = true
+    const nextPage = page.value + 1
+    const res = await axios.get('/api/users/search', { params: { q: currentQuery, limit, page: nextPage } })
+    const items = res.data?.data || []
+    searchResults.value = searchResults.value.concat(items)
+    page.value = nextPage
+    hasMore.value = items.length === limit
+  } catch (_) {
+    // ignore
+  } finally {
+    searching.value = false
+  }
+}
 
 const trends = ref([
   { id: 1, category: 'Technology', title: 'Vue 3.4', tweetsCount: '12.5K' },
@@ -271,6 +305,7 @@ const trends = ref([
 ])
 
 const suggestedUsers = ref<any[]>([])
+const suggOffset = ref(0)
 
 const popularTweets = ref([
   {
@@ -348,7 +383,7 @@ const formatDate = (dateString: string) => {
 
 const fetchSuggestions = async () => {
   try {
-    const res = await axios.get('/api/follows/suggestions', { params: { limit: 5 } })
+    const res = await axios.get('/api/follows/suggestions', { params: { limit: 5, offset: suggOffset.value } })
     suggestedUsers.value = res.data?.data || []
   } catch (_) {
     suggestedUsers.value = []
@@ -358,4 +393,9 @@ const fetchSuggestions = async () => {
 onMounted(() => {
   fetchSuggestions()
 })
+
+const refreshSuggestions = () => {
+  suggOffset.value += 5
+  fetchSuggestions()
+}
 </script>

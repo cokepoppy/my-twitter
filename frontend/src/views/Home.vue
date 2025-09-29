@@ -252,6 +252,13 @@
             </div>
           </div>
 
+          <!-- New posts banner -->
+          <div v-if="newCount > 0" class="px-4 py-2 border-b border-[color:var(--twitter-border)] bg-blue-50/60 sticky top-[3.5rem] z-10">
+            <button @click="showNewPosts" class="w-full text-center text-[15px] font-medium text-twitter-blue hover:underline">
+              Show {{ newCount }} {{ newCount === 1 ? 'post' : 'posts' }}
+            </button>
+          </div>
+
           <!-- Feed -->
           <div>
             <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-[color:var(--twitter-border)] px-4 py-3 hover:bg-gray-50 transition">
@@ -342,7 +349,10 @@
           </div>
           <div class="mt-4 bg-[color:var(--twitter-panel)] rounded-2xl overflow-hidden">
             <div class="p-4">
-              <h2 class="text-xl font-extrabold">Who to follow</h2>
+              <div class="flex items-center justify-between">
+                <h2 class="text-xl font-extrabold">Who to follow</h2>
+                <button @click="refreshHomeSuggestions" class="text-sm text-gray-600 hover:text-gray-900">Refresh</button>
+              </div>
               <div class="mt-3 space-y-3">
                 <div v-for="user in suggestedUsers" :key="user.id" class="flex items-center justify-between">
                   <div class="flex items-center gap-3">
@@ -414,6 +424,9 @@ const posting = ref(false)
 const postError = ref('')
 const remainingChars = computed(() => 280 - tweetContent.value.length)
 const tweets = ref<any[]>([])
+const newCount = ref(0)
+const topId = ref<any | null>(null)
+let pollTimer: any = null
 const attachments = ref<Array<{ file: File; url: string; type: 'image' | 'video' | 'gif' }>>([])
 const fileInput = ref<HTMLInputElement | null>(null)
 const isImageMode = computed(() => attachments.value.length > 0 && attachments.value[0].type === 'image')
@@ -463,6 +476,7 @@ const trends = ref([
   { id: 3, category: 'Entertainment', title: 'New Movie', tweetsCount: '8.9K' },
 ])
 const suggestedUsers = ref<any[]>([])
+const homeSuggOffset = ref(0)
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString)
@@ -527,6 +541,8 @@ const postTweet = async () => {
         try {
           const created = await doPostTweet(content, files, quoteId, poll)
           tweets.value.unshift(created)
+          topId.value = created.id
+          newCount.value = 0
         } catch (err: any) {
           postError.value = err?.response?.data?.message || err?.message || 'Failed to post scheduled tweet'
         }
@@ -548,6 +564,8 @@ const postTweet = async () => {
   try {
     const created = await doPostTweet(content, files, quoteId, poll)
     tweets.value.unshift(created)
+    topId.value = created.id
+    newCount.value = 0
     tweetContent.value = ''
     attachments.value = []
     quoteTweetData.value = null
@@ -557,6 +575,32 @@ const postTweet = async () => {
     postError.value = err?.response?.data?.message || err?.message || 'Failed to post tweet'
   } finally {
     posting.value = false
+  }
+}
+
+const checkForNewTweets = async () => {
+  try {
+    const res = await axios.get('/api/tweets/timeline', { params: { page: 1, limit: 20 } })
+    const items = res.data?.data || []
+    if (!items.length || !topId.value) return
+    const idx = items.findIndex((t: any) => t.id === topId.value)
+    if (idx > 0) newCount.value = idx
+    else if (idx === -1) newCount.value = items.length
+  } catch (_) {
+    // ignore
+  }
+}
+
+const showNewPosts = async () => {
+  try {
+    const res = await axios.get('/api/tweets/timeline', { params: { page: 1, limit: 20 } })
+    tweets.value = res.data?.data || []
+    topId.value = tweets.value.length ? tweets.value[0].id : null
+    newCount.value = 0
+    const el = document.querySelector('main')
+    if (el) (el as HTMLElement).scrollTo({ top: 0, behavior: 'smooth' })
+  } catch (_) {
+    // ignore
   }
 }
 
@@ -703,19 +747,33 @@ onMounted(async () => {
   try {
     const res = await axios.get('/api/tweets/timeline', { params: { page: 1, limit: 20 } })
     tweets.value = res.data?.data || []
+    topId.value = tweets.value.length ? tweets.value[0].id : null
   } catch (e) {
     // leave empty if API not ready
   }
   try {
-    const sug = await axios.get('/api/follows/suggestions', { params: { limit: 3 } })
+    const sug = await axios.get('/api/follows/suggestions', { params: { limit: 3, offset: homeSuggOffset.value } })
     suggestedUsers.value = sug.data?.data || []
   } catch (_) {
     suggestedUsers.value = []
   }
+  // Start polling for new posts
+  pollTimer = setInterval(checkForNewTweets, 15000)
 })
+
+const refreshHomeSuggestions = async () => {
+  try {
+    homeSuggOffset.value += 3
+    const sug = await axios.get('/api/follows/suggestions', { params: { limit: 3, offset: homeSuggOffset.value } })
+    suggestedUsers.value = sug.data?.data || []
+  } catch (_) {
+    // ignore
+  }
+}
 
 onBeforeUnmount(() => {
   document.removeEventListener('click', onDocumentClick)
+  if (pollTimer) clearInterval(pollTimer)
 })
 
 const toggleAccountMenu = () => {
