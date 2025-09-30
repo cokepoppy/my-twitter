@@ -95,24 +95,25 @@
       <div class="flex w-full">
         <!-- Main timeline -->
         <main class="w-full md:max-w-[600px] border-x border-[color:var(--twitter-border)] min-h-screen pb-16 md:pb-0">
-          <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[color:var(--twitter-border)]">
-            <div class="flex items-center justify-between px-4 py-3">
-              <h1 class="text-xl font-bold">Home</h1>
-              <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3c-6.62-.1-10.38 2.42-13.05 6.03C7.29 12.61 6 17.33 6 22h2c0-1.01.07-2.01.19-3H12c4.1 0 7.48-3.08 7.94-7.05C22.79 10.15 23.17 6.36 23 3zM4 9V6H1V4h3V1h2v3h3v2H6v3H4z"/></svg>
+          <template v-if="$route.name === 'home'">
+            <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[color:var(--twitter-border)]">
+              <div class="flex items-center justify-between px-4 py-3">
+                <h1 class="text-xl font-bold">Home</h1>
+                <svg class="w-5 h-5 text-blue-500" viewBox="0 0 24 24" fill="currentColor"><path d="M23 3c-6.62-.1-10.38 2.42-13.05 6.03C7.29 12.61 6 17.33 6 22h2c0-1.01.07-2.01.19-3H12c4.1 0 7.48-3.08 7.94-7.05C22.79 10.15 23.17 6.36 23 3zM4 9V6H1V4h3V1h2v3h3v2H6v3H4z"/></svg>
+              </div>
+              <div class="flex">
+                <button class="flex-1 py-3 text-center font-medium border-b-4 border-black">For you</button>
+                <button class="flex-1 py-3 text-center text-gray-500 hover:bg-gray-50">Following</button>
+              </div>
             </div>
-            <div class="flex">
-              <button class="flex-1 py-3 text-center font-medium border-b-4 border-black">For you</button>
-              <button class="flex-1 py-3 text-center text-gray-500 hover:bg-gray-50">Following</button>
-            </div>
-          </div>
 
-          <!-- Composer -->
-          <div id="composer" class="border-b border-[color:var(--twitter-border)] px-4 py-3">
-            <div class="flex gap-3">
-              <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="48" />
-              <div class="flex-1">
-                <textarea ref="composerRef" v-model="tweetContent" class="w-full text-xl placeholder-gray-500 resize-none focus:outline-none mb-2" placeholder="What is happening?!" rows="3" maxlength="280"></textarea>
-                <!-- Attachments preview -->
+            <!-- Composer -->
+            <div id="composer" class="border-b border-[color:var(--twitter-border)] px-4 py-3">
+              <div class="flex gap-3">
+                <Avatar :src="authStore.user?.avatarUrl" :alt="authStore.user?.username || 'avatar'" :size="48" />
+                <div class="flex-1">
+                  <textarea ref="composerRef" v-model="tweetContent" class="w-full text-xl placeholder-gray-500 resize-none focus:outline-none mb-2" placeholder="What is happening?!" rows="3" maxlength="280"></textarea>
+                  <!-- Attachments preview -->
                 <div v-if="attachments.length" class="mb-2">
                   <div v-if="isImageMode" class="grid grid-cols-2 gap-2">
                     <div v-for="(att, idx) in attachments" :key="idx" class="relative rounded-lg overflow-hidden">
@@ -252,54 +253,57 @@
             </div>
           </div>
 
-          <!-- New posts banner -->
-          <div v-if="newCount > 0" class="px-4 py-2 border-b border-[color:var(--twitter-border)] bg-blue-50/60 sticky top-[3.5rem] z-10">
-            <button @click="showNewPosts" class="w-full text-center text-[15px] font-medium text-twitter-blue hover:underline">
-              Show {{ newCount }} {{ newCount === 1 ? 'post' : 'posts' }}
-            </button>
-          </div>
+            <!-- New posts banner -->
+            <div v-if="newCount > 0" class="px-4 py-2 border-b border-[color:var(--twitter-border)] bg-blue-50/60 sticky top-[3.5rem] z-10">
+              <button @click="showNewPosts" class="w-full text-center text-[15px] font-medium text-twitter-blue hover:underline">
+                Show {{ newCount }} {{ newCount === 1 ? 'post' : 'posts' }}
+              </button>
+            </div>
 
-          <!-- Reply modal -->
-          <ReplyModal v-if="replyingTo" :tweet="replyingTo" @close="replyingTo=null" @submitted="onReplySubmitted" />
+            <!-- Reply modal -->
+            <ReplyModal v-if="replyingTo" :tweet="replyingTo" @close="replyingTo=null" @submitted="onReplySubmitted" />
 
-          <!-- Feed -->
-          <div>
-            <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-[color:var(--twitter-border)] px-4 py-3 hover:bg-gray-50 transition">
-              <div class="flex gap-3">
-                <Avatar :src="tweet.user?.avatarUrl" :alt="tweet.user?.username || 'avatar'" :size="48" />
-                <div class="flex-1 min-w-0">
+            <!-- Feed -->
+            <div>
+              <div v-for="tweet in tweets" :key="tweet.id" class="border-b border-[color:var(--twitter-border)] px-4 py-3 hover:bg-gray-50 transition">
+                <div class="flex gap-3">
+                  <Avatar :src="tweet.user?.avatarUrl" :alt="tweet.user?.username || 'avatar'" :size="48" />
+                  <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-1 text-[15px] leading-5">
                     <span class="font-bold hover:underline cursor-pointer truncate">{{ tweet.user?.fullName || 'User' }}</span>
                     <svg v-if="tweet.user?.verified" viewBox="0 0 24 24" class="w-4 h-4 text-blue-500" fill="currentColor" aria-hidden="true"><path d="M12 2l2.39 2.39 3.39-.39-.39 3.39L20 10l-2.61 2.61.39 3.39-3.39-.39L12 18l-2.39-2.39-3.39.39.39-3.39L4 10l2.61-2.61-.39-3.39 3.39.39L12 2z"/></svg>
                     <span class="text-gray-500 truncate">@{{ tweet.user?.username || 'user' }} · {{ formatDate(tweet.createdAt) }}</span>
-                    <button class="ml-auto p-1 rounded-full hover:bg-gray-100">
+                    <button class="ml-auto p-1 rounded-full hover:bg-gray-100" @click.stop>
                       <svg class="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4zm0 6a2 2 0 110-4 2 2 0 010 4z"/></svg>
                     </button>
                   </div>
                   <div v-if="tweet.replyToTweetId && tweet.parentTweet && tweet.parentTweet.user" class="text-sm text-gray-600">
                     Replying to
-                    <router-link :to="`/profile/${tweet.parentTweet.user.username}`" class="text-twitter-blue hover:underline">
+                    <router-link :to="`/profile/${tweet.parentTweet.user.username}`" class="text-twitter-blue hover:underline" @click.stop>
                       @{{ tweet.parentTweet.user.username }}
                     </router-link>
                   </div>
-                  <div class="mt-1 whitespace-pre-wrap break-words leading-5">{{ tweet.content }}</div>
-                  <!-- Quote original tweet preview -->
-                  <div v-if="tweet.retweetId && tweet.originalTweet" class="mt-2 border rounded-xl p-3 bg-gray-50">
-                    <div class="text-sm text-gray-700">
-                      <span class="font-semibold">@{{ tweet.originalTweet.user?.username }}</span>
+                  <!-- Clickable area to open detail -->
+                  <div @click="goTweet(tweet.id)" class="cursor-pointer">
+                    <div class="mt-1 whitespace-pre-wrap break-words leading-5">{{ tweet.content }}</div>
+                    <!-- Quote original tweet preview -->
+                    <div v-if="tweet.retweetId && tweet.originalTweet" class="mt-2 border rounded-xl p-3 bg-gray-50">
+                      <div class="text-sm text-gray-700">
+                        <span class="font-semibold">@{{ tweet.originalTweet.user?.username }}</span>
+                      </div>
+                      <div class="text-sm whitespace-pre-wrap break-words">{{ tweet.originalTweet.content }}</div>
                     </div>
-                    <div class="text-sm whitespace-pre-wrap break-words">{{ tweet.originalTweet.content }}</div>
+                    <!-- Images/GIFs -->
+                    <TweetMedia
+                      v-if="tweet.media && tweet.media.filter((m: any) => m.fileType !== 'video').length"
+                      :media="tweet.media.filter((m: any) => m.fileType !== 'video').map((m: any) => m.fileUrl)"
+                    />
+                    <!-- Single Video -->
+                    <div v-if="tweet.media && tweet.media.some((m: any) => m.fileType === 'video')" class="mt-2 overflow-hidden rounded-2xl border border-[color:var(--twitter-border)]">
+                      <video :src="tweet.media.find((m: any) => m.fileType === 'video')?.fileUrl" controls class="w-full max-h-[560px] bg-black"></video>
+                    </div>
+                    <div class="mt-1 text-gray-500 text-[13px]" v-if="tweet.viewsCount">{{ tweet.viewsCount }} views</div>
                   </div>
-                  <!-- Images/GIFs -->
-                  <TweetMedia
-                    v-if="tweet.media && tweet.media.filter((m: any) => m.fileType !== 'video').length"
-                    :media="tweet.media.filter((m: any) => m.fileType !== 'video').map((m: any) => m.fileUrl)"
-                  />
-                  <!-- Single Video -->
-                  <div v-if="tweet.media && tweet.media.some((m: any) => m.fileType === 'video')" class="mt-2 overflow-hidden rounded-2xl border border-[color:var(--twitter-border)]">
-                    <video :src="tweet.media.find((m: any) => m.fileType === 'video')?.fileUrl" controls class="w-full max-h-[560px] bg-black"></video>
-                  </div>
-                  <div class="mt-1 text-gray-500 text-[13px]" v-if="tweet.viewsCount">{{ tweet.viewsCount }} views</div>
                   <div class="mt-1 flex items-center justify-between text-gray-500 max-w-[520px]">
                     <button class="group flex items-center gap-1" @click="onReply(tweet)">
                       <span class="p-2 rounded-full group-hover:bg-blue-50">
@@ -340,6 +344,8 @@
               </div>
             </div>
           </div>
+          </template>
+          <router-view v-else />
         </main>
 
         <!-- Right sidebar -->
@@ -749,6 +755,10 @@ const shareTweet = async (tweet: any) => {
     // fallback
     window.prompt('Copy link to tweet:', url)
   }
+}
+
+const goTweet = (id: string | number) => {
+  router.push(`/tweet/${id}`)
 }
 
 const toggleBookmark = (tweet: any) => {

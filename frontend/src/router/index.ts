@@ -23,7 +23,15 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: Home,
-      meta: { requiresAuth: true }
+      meta: { requiresAuth: true },
+      children: [
+        {
+          path: 'tweet/:id',
+          name: 'tweet',
+          component: Tweet,
+          meta: { requiresAuth: true }
+        }
+      ]
     },
     {
       path: '/bookmarks',
@@ -77,12 +85,6 @@ const router = createRouter({
       path: '/profile/:username',
       name: 'profile',
       component: Profile,
-      meta: { requiresAuth: true }
-    },
-    {
-      path: '/tweet/:id',
-      name: 'tweet',
-      component: Tweet,
       meta: { requiresAuth: true }
     },
     {

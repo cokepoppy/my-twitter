@@ -1,36 +1,28 @@
 <template>
-  <div class="min-h-screen bg-gray-50">
-    <!-- Tweet Detail -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center">
-            <button @click="$router.back()" class="mr-4">
-              <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-              </svg>
-            </button>
-            <h1 class="text-xl font-bold text-gray-900">Tweet</h1>
-          </div>
-        </div>
+  <div>
+    <!-- Tweet Detail header (sticky) -->
+    <div class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-[color:var(--twitter-border)]">
+      <div class="flex items-center gap-3 px-4 py-3">
+        <button @click="$router.back()" aria-label="Back" class="p-2 rounded-full hover:bg-gray-100">
+          <svg viewBox="0 0 24 24" class="w-6 h-6 text-black" fill="currentColor"><path d="M7.414 13l5.043 5.04-1.414 1.42L3.586 12l7.457-7.46 1.414 1.42L7.414 11H21v2H7.414z"/></svg>
+        </button>
+        <h1 class="text-xl font-bold">Post</h1>
       </div>
     </div>
 
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="px-4 py-3 border-b border-[color:var(--twitter-border)]">
       <!-- Main Tweet -->
-      <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <div class="flex items-start space-x-3">
+      <div>
+        <div class="flex items-start gap-3">
           <img
             :src="tweet?.user.avatarUrl || 'https://via.placeholder.com/48'"
             :alt="tweet?.user.username"
             class="h-12 w-12 rounded-full"
           />
-          <div class="flex-1">
-            <div class="flex items-center space-x-2 mb-1">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1 text-[15px] leading-5">
               <h3 class="font-semibold text-gray-900">{{ tweet?.user.fullName }}</h3>
-              <span class="text-gray-500">@{{ tweet?.user.username }}</span>
-              <span class="text-gray-500">·</span>
-              <span class="text-gray-500">{{ formatDate(tweet?.createdAt) }}</span>
+              <span class="text-gray-500">@{{ tweet?.user.username }} · {{ formatDate(tweet?.createdAt) }}</span>
             </div>
             <div v-if="tweet?.replyToTweetId && (tweet as any).parentTweet && (tweet as any).parentTweet.user" class="text-sm text-gray-600 mb-1">
               Replying to
@@ -38,9 +30,9 @@
                 @{{ (tweet as any).parentTweet.user.username }}
               </router-link>
             </div>
-            <p class="text-gray-900 mb-4">{{ tweet?.content }}</p>
+            <p class="text-gray-900 mt-2 whitespace-pre-wrap break-words leading-6 text-[17px]">{{ tweet?.content }}</p>
             <!-- Quote original tweet preview -->
-            <div v-if="tweet?.retweetId && (tweet as any).originalTweet" class="mb-4 border rounded-xl p-3 bg-gray-50">
+            <div v-if="tweet?.retweetId && (tweet as any).originalTweet" class="mt-3 border rounded-xl p-3 bg-gray-50">
               <div class="text-sm text-gray-700">
                 <span class="font-semibold">@{{ (tweet as any).originalTweet.user?.username }}</span>
               </div>
@@ -48,24 +40,18 @@
             </div>
 
             <!-- Tweet Media -->
-            <div v-if="tweet?.media && tweet.media.length > 0" class="mb-4">
-              <div class="grid grid-cols-2 gap-2">
-                <div v-for="media in tweet.media" :key="media.id" class="rounded-lg overflow-hidden">
-                  <img
-                    v-if="media.fileType === 'image'"
-                    :src="media.fileUrl"
-                    :alt="`Media ${media.id}`"
-                    class="w-full h-full object-cover"
-                  />
-                  <div v-else class="w-full h-32 bg-gray-200 flex items-center justify-center">
-                    <span class="text-gray-500">{{ media.fileType }}</span>
-                  </div>
-                </div>
+            <div v-if="tweet?.media && tweet.media.length > 0" class="mt-3">
+              <div v-if="tweet.media.some((m:any)=>m.fileType==='video')" class="overflow-hidden rounded-2xl border border-[color:var(--twitter-border)]">
+                <video :src="tweet.media.find((m:any)=>m.fileType==='video')?.fileUrl" controls class="w-full max-h-[560px] bg-black"></video>
               </div>
+              <TweetMedia
+                v-else
+                :media="tweet.media.filter((m: any) => m.fileType !== 'video').map((m:any)=>m.fileUrl)"
+              />
             </div>
 
             <!-- Tweet Stats -->
-            <div class="flex items-center space-x-6 text-sm text-gray-500 mb-4">
+            <div class="mt-3 pt-3 flex items-center gap-6 text-sm text-gray-500 border-t border-[color:var(--twitter-border)]">
               <div class="flex items-center space-x-1">
                 <span class="font-semibold text-gray-900">{{ tweet?.retweetsCount || 0 }}</span>
                 <span>Retweets</span>
@@ -77,7 +63,7 @@
             </div>
 
             <!-- Tweet Actions -->
-            <div class="flex items-center justify-between border-t border-gray-200 pt-4">
+            <div class="mt-2 flex items-center justify-between border-t border-[color:var(--twitter-border)] pt-2 max-w-[520px] text-gray-500">
               <button class="flex items-center space-x-2 text-gray-500 hover:text-twitter-blue">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
@@ -107,69 +93,36 @@
       </div>
 
       <!-- Reply Section -->
-      <div class="bg-white shadow rounded-lg p-6 mb-6">
-        <div class="flex items-start space-x-3">
-          <img
-            :src="currentUser?.avatarUrl || 'https://via.placeholder.com/40'"
-            :alt="currentUser?.username"
-            class="h-10 w-10 rounded-full"
-          />
+      <div class="px-4 py-3 border-b border-[color:var(--twitter-border)]">
+        <div class="flex items-start gap-3">
+          <img :src="currentUser?.avatarUrl || 'https://via.placeholder.com/40'" :alt="currentUser?.username" class="h-10 w-10 rounded-full" />
           <div class="flex-1">
-            <textarea
-              v-model="replyContent"
-              placeholder="Tweet your reply"
-              class="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-twitter-blue"
-              rows="3"
-              maxlength="280"
-            ></textarea>
-            <div class="flex items-center justify-between mt-3">
-              <div class="flex items-center space-x-2">
-                <button class="text-twitter-blue hover:text-blue-600">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                  </svg>
-                </button>
-                <button class="text-twitter-blue hover:text-blue-600">
-                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                </button>
-              </div>
-              <div class="flex items-center space-x-3">
-                <span class="text-sm text-gray-500">{{ replyContent.length }}/280</span>
-                <button
-                  @click="postReply"
-                  :disabled="!replyContent.trim()"
-                  class="twitter-button text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Reply
-                </button>
-              </div>
+            <textarea v-model="replyContent" placeholder="Post your reply" rows="3" maxlength="280" class="w-full resize-none focus:outline-none placeholder-gray-500"></textarea>
+            <div class="flex items-center justify-end gap-3 mt-2">
+              <span class="text-sm text-gray-500">{{ replyContent.length }}/280</span>
+              <button @click="postReply" :disabled="!replyContent.trim()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-1.5 px-4 rounded-full disabled:opacity-50">Reply</button>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Replies -->
-      <div class="space-y-4">
-        <h2 class="text-lg font-semibold text-gray-900">Replies</h2>
+      <div>
         <div
           v-for="reply in replies"
           :key="reply.id"
-          class="bg-white shadow rounded-lg p-6"
+          class="px-4 py-3 border-b border-[color:var(--twitter-border)]"
         >
-          <div class="flex items-start space-x-3">
+          <div class="flex items-start gap-3">
             <img
               :src="reply.user.avatarUrl || 'https://via.placeholder.com/40'"
               :alt="reply.user.username"
               class="h-10 w-10 rounded-full"
             />
             <div class="flex-1">
-              <div class="flex items-center space-x-2 mb-1">
-                <h3 class="font-semibold text-gray-900">{{ reply.user.fullName }}</h3>
-                <span class="text-gray-500">@{{ reply.user.username }}</span>
-                <span class="text-gray-500">·</span>
-                <span class="text-gray-500">{{ formatDate(reply.createdAt) }}</span>
+            <div class="flex items-center gap-1 text-[15px] leading-5 mb-1">
+              <h3 class="font-semibold text-gray-900">{{ reply.user.fullName }}</h3>
+                <span class="text-gray-500">@{{ reply.user.username }} · {{ formatDate(reply.createdAt) }}</span>
               </div>
               <div class="text-sm text-gray-600 mb-1">
                 Replying to
@@ -228,6 +181,7 @@ import { useRoute } from 'vue-router'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/auth'
 import type { Tweet } from '@/types'
+import TweetMedia from '@/components/TweetMedia.vue'
 
 const route = useRoute()
 const authStore = useAuthStore()
