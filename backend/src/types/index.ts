@@ -1,5 +1,5 @@
 export interface User {
-  id: number
+  id: string
   username: string
   email: string
   fullName: string
@@ -19,12 +19,12 @@ export interface User {
 }
 
 export interface Tweet {
-  id: number
-  userId: number
+  id: string
+  userId: string
   content: string
-  replyToTweetId?: number
-  replyToUserId?: number
-  retweetId?: number
+  replyToTweetId?: string
+  replyToUserId?: string
+  retweetId?: string
   viewsCount: number
   likesCount: number
   retweetsCount: number
@@ -35,8 +35,8 @@ export interface Tweet {
 }
 
 export interface Media {
-  id: number
-  tweetId: number
+  id: string
+  tweetId: string
   fileUrl: string
   fileType: 'image' | 'video' | 'gif'
   fileSize: number
@@ -48,43 +48,43 @@ export interface Media {
 }
 
 export interface Follow {
-  id: number
-  followerId: number
-  followingId: number
+  id: string
+  followerId: string
+  followingId: string
   createdAt: Date
 }
 
 export interface Like {
-  id: number
-  userId: number
-  tweetId: number
+  id: string
+  userId: string
+  tweetId: string
   createdAt: Date
 }
 
 export interface Notification {
-  id: number
-  userId: number
-  type: 'like' | 'follow' | 'reply' | 'retweet' | 'follow_request' | 'follow_request_approved'
-  actorId: number
-  tweetId?: number
+  id: string
+  userId: string
+  type: 'LIKE' | 'FOLLOW' | 'REPLY' | 'RETWEET' | 'MENTION' | 'FOLLOW_REQUEST' | 'FOLLOW_REQUEST_APPROVED'
+  actorId: string
+  tweetId?: string
   isRead: boolean
   createdAt: Date
 }
 
 export interface Message {
-  id: number
-  senderId: number
-  receiverId: number
+  id: string
+  senderId: string
+  receiverId: string
   content: string
   isRead: boolean
   createdAt: Date
 }
 
 export interface Conversation {
-  id: number
-  user1Id: number
-  user2Id: number
-  lastMessageId?: number
+  id: string
+  user1Id: string
+  user2Id: string
+  lastMessageId?: string
   createdAt: Date
   updatedAt: Date
 }
@@ -122,7 +122,7 @@ export interface LoginUserDto {
 
 export interface CreateTweetDto {
   content: string
-  replyToTweetId?: number
+  replyToTweetId?: string
 }
 
 export interface UpdateUserDto {
@@ -145,7 +145,7 @@ export interface PaginationQuery {
 }
 
 export interface TweetQuery extends PaginationQuery {
-  userId?: number
+  userId?: string
   type?: 'tweets' | 'replies' | 'media' | 'likes'
 }
 
@@ -160,7 +160,7 @@ export interface SearchQuery extends PaginationQuery {
 
 // Socket types
 export interface SocketUser {
-  id: number
+  id: string
   username: string
   socketId: string
 }
@@ -168,5 +168,5 @@ export interface SocketUser {
 export interface SocketMessage {
   type: 'new_tweet' | 'new_like' | 'new_retweet' | 'new_follow' | 'new_notification' | 'new_message'
   data: any
-  to?: string | number // userId or roomId
+  to?: string // userId or roomId
 }

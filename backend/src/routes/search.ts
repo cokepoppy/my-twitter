@@ -44,18 +44,8 @@ router.get('/', [
         prisma.user.findMany({
           where: {
             OR: [
-              {
-                username: {
-                  contains: searchQuery,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                fullName: {
-                  contains: searchQuery,
-                  mode: 'insensitive'
-                }
-              }
+              { username: { contains: searchQuery } },
+              { fullName: { contains: searchQuery } }
             ],
             isPrivate: false // Only search public users
           },
@@ -75,20 +65,7 @@ router.get('/', [
         }),
         prisma.user.count({
           where: {
-            OR: [
-              {
-                username: {
-                  contains: searchQuery,
-                  mode: 'insensitive'
-                }
-              },
-              {
-                fullName: {
-                  contains: searchQuery,
-                  mode: 'insensitive'
-                }
-              }
-            ],
+            OR: [ { username: { contains: searchQuery } }, { fullName: { contains: searchQuery } } ],
             isPrivate: false
           }
         })
@@ -133,10 +110,7 @@ router.get('/', [
       const [tweets, totalTweets] = await Promise.all([
         prisma.tweet.findMany({
           where: {
-            content: {
-              contains: searchQuery,
-              mode: 'insensitive'
-            },
+            content: { contains: searchQuery },
             isDeleted: false,
             // If not authenticated, only show public tweets
             ...(currentUserId ? {} : {
@@ -188,10 +162,7 @@ router.get('/', [
         }),
         prisma.tweet.count({
           where: {
-            content: {
-              contains: searchQuery,
-              mode: 'insensitive'
-            },
+            content: { contains: searchQuery },
             isDeleted: false,
             ...(currentUserId ? {} : {
               user: { isPrivate: false }
@@ -290,18 +261,8 @@ router.get('/suggestions', [
     const users = await prisma.user.findMany({
       where: {
         OR: [
-          {
-            username: {
-              startsWith: searchQuery,
-              mode: 'insensitive'
-            }
-          },
-          {
-            fullName: {
-              contains: searchQuery,
-              mode: 'insensitive'
-            }
-          }
+          { username: { startsWith: searchQuery } },
+          { fullName: { contains: searchQuery } }
         ],
         isPrivate: false
       },

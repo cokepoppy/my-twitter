@@ -357,14 +357,12 @@ router.get('/search', [
           OR: [
             {
               username: {
-                contains: q as string,
-                mode: 'insensitive'
+                contains: q as string
               }
             },
             {
               fullName: {
-                contains: q as string,
-                mode: 'insensitive'
+                contains: q as string
               }
             }
           ]
@@ -386,14 +384,12 @@ router.get('/search', [
           OR: [
             {
               username: {
-                contains: q as string,
-                mode: 'insensitive'
+                contains: q as string
               }
             },
             {
               fullName: {
-                contains: q as string,
-                mode: 'insensitive'
+                contains: q as string
               }
             }
           ]

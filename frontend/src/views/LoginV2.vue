@@ -88,7 +88,9 @@ const googleEnabled = ref(true)
 const error = ref<string | null>(null)
 
 const signInWithGoogle = () => {
-  window.location.href = '/api/auth/google'
+  const base = import.meta.env.VITE_API_URL || ''
+  const url = `${base.replace(/\/$/, '')}/api/auth/google`
+  window.location.href = url
 }
 
 onMounted(async () => {

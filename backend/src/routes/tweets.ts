@@ -63,7 +63,7 @@ router.post('/', authenticate, [
 
     // If quoting a tweet, verify it exists
     if (retweetId) {
-      const original = await prisma.tweet.findUnique({
+      const original = await prisma.tweet.findFirst({
         where: { id: retweetId, isDeleted: false },
         select: { id: true, userId: true }
       })
@@ -231,18 +231,13 @@ router.get('/user/:username', [
         // For likes, we need to query through the Like model
         const [likedTweets, total] = await Promise.all([
           prisma.like.findMany({
-            where: { userId: user.id },
-            include: {
-              tweet: {
-                include: includeClause,
-                where: { isDeleted: false }
-              }
-            },
+            where: { userId: user.id, tweet: { isDeleted: false } },
+            include: { tweet: { include: includeClause } },
             skip: (pageNum - 1) * limitNum,
             take: limitNum,
             orderBy: { createdAt: 'desc' }
           }),
-          prisma.like.count({ where: { userId: user.id } })
+          prisma.like.count({ where: { userId: user.id, tweet: { isDeleted: false } } })
         ])
 
         return res.json({
@@ -513,7 +508,7 @@ router.post('/:id/like', authenticate, async (req: AuthRequest, res: any, next: 
     const userId = req.user!.id
 
     // Check if tweet exists
-    const tweet = await prisma.tweet.findUnique({
+    const tweet = await prisma.tweet.findFirst({
       where: { id, isDeleted: false },
       select: { userId: true, likesCount: true }
     })
@@ -590,7 +585,7 @@ router.post('/:id/retweet', authenticate, async (req: AuthRequest, res: any, nex
     const userId = req.user!.id
 
     // Check if original tweet exists
-    const originalTweet = await prisma.tweet.findUnique({
+    const originalTweet = await prisma.tweet.findFirst({
       where: { id, isDeleted: false },
       select: { userId: true, retweetsCount: true }
     })
@@ -708,7 +703,7 @@ router.get('/:id', optionalAuth, async (req: any, res: any, next: any) => {
     const { id } = req.params
     const currentUserId = req.user?.id
 
-    const tweet = await prisma.tweet.findUnique({
+    const tweet = await prisma.tweet.findFirst({
       where: { id, isDeleted: false },
       include: {
         user: {

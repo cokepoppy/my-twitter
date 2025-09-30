@@ -4,7 +4,7 @@ import { createError } from './errorHandler'
 
 export interface AuthRequest extends Request {
   user?: {
-    id: number
+    id: string
     username: string
     email: string
     iat?: number
