@@ -9,9 +9,10 @@ import './assets/main.css'
 
 const app = createApp(App)
 
-// Axios base URL for Vercel/static hosting
-// Set VITE_API_URL in Vercel to your backend origin, e.g. https://api.example.com
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || ''
+// Axios base URL for static hosting / production
+// Prefer explicit VITE_API_URL; otherwise fall back to same-origin
+const apiBase = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '')
+axios.defaults.baseURL = apiBase
 
 app.use(createPinia())
 app.use(router)

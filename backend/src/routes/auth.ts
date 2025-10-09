@@ -250,7 +250,9 @@ router.get('/google', async (req, res, next) => {
   try {
     const clientId = process.env.GOOGLE_CLIENT_ID
     if (!clientId) {
-      const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+      const frontend = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+        .split(',')[0]
+        .trim()
       const redirect = `${frontend.replace(/\/$/, '')}/login-v2?error=google_disabled`
       return res.redirect(redirect)
     }
@@ -278,7 +280,9 @@ router.get('/google', async (req, res, next) => {
     res.redirect(url)
   } catch (error) {
     try {
-      const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+      const frontend = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+        .split(',')[0]
+        .trim()
       const redirect = `${frontend.replace(/\/$/, '')}/login-v2?error=google_login_failed`
       return res.redirect(redirect)
     } catch (_) {
@@ -381,14 +385,18 @@ router.get('/google/callback', async (req: any, res: any, next: any) => {
       { expiresIn: '7d' }
     )
 
-    const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+    const frontend = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+      .split(',')[0]
+      .trim()
     const redirect = `${frontend.replace(/\/$/, '')}/auth/callback?token=${encodeURIComponent(appToken)}`
     res.redirect(redirect)
   } catch (error: any) {
     // Log for troubleshooting during development
     console.error('Google OAuth callback error:', error?.message || error)
     // On error, navigate back to login-v2 with a generic error message
-    const frontend = process.env.FRONTEND_URL || 'http://localhost:3000'
+    const frontend = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000')
+      .split(',')[0]
+      .trim()
     const debug = process.env.NODE_ENV !== 'production' && error?.message ? `&debug=${encodeURIComponent(error.message)}` : ''
     const redirect = `${frontend.replace(/\/$/, '')}/login-v2?error=google_login_failed${debug}`
     try {

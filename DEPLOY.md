@@ -63,6 +63,15 @@ chmod +x deploy.sh
    ```
 3. **访问地址**：http://120.79.174.9
 
+### CORS / 前后端同源配置（重要）
+- 如果前端通过 Nginx 静态托管在 `http://120.79.174.9`，后端运行在 `:8000`，推荐使用反向代理将同源的 `/api` 转发到后端，避免 CORS：
+  - Nginx 中：`location /api { proxy_pass http://127.0.0.1:8000; }`
+  - 此时前端的 `VITE_API_URL` 可以留空或设为 `http://120.79.174.9`
+- 若不使用反向代理，需配置后端 CORS 允许页面来源：
+  - 在后端环境设置 `FRONTEND_URLS=http://120.79.174.9,http://localhost:3000`
+  - 重启后端后，`Access-Control-Allow-Origin` 将自动匹配来源
+  - 本仓库已将后端 CORS 改为多域名白名单（支持逗号分隔）
+
 ## 维护命令
 ```bash
 # 查看服务状态

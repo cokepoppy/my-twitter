@@ -1,0 +1,19 @@
+# Caddyfile for production HTTPS reverse proxy
+
+{$API_DOMAIN} {
+  encode zstd gzip
+
+  # Optional security headers (backend also sets headers)
+  header {
+    # Remove server header
+    -Server
+  }
+
+  reverse_proxy backend:8000 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}
+

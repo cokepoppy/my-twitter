@@ -1,13 +1,16 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static-build", "config": { "distDir": "dist" } }
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    }
   ],
   "env": {
-    "VITE_API_URL": "https://your-backend-domain" 
-  },
-  "routes": [
-    { "src": "/(.*)", "dest": "/index.html" }
-  ]
+    "VITE_API_URL": "http://120.79.174.9"
+  }
 }
 

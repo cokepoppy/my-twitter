@@ -60,7 +60,7 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
-      component: Login,
+      component: LoginV2,
       meta: { guest: true }
     },
     {
@@ -132,7 +132,7 @@ router.beforeEach((to, from, next) => {
   const isGuest = to.matched.some(record => record.meta.guest)
 
   if (requiresAuth && !token) {
-    next('/login-v2')
+    next('/login')
   } else if (isGuest && token) {
     next('/')
   } else {

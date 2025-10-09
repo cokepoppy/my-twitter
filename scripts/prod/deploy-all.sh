@@ -32,6 +32,9 @@ PROJECT=${PROJECT:-""}
 SKIP_BACKEND=${SKIP_BACKEND:-""}
 SKIP_FRONTEND=${SKIP_FRONTEND:-""}
 
+API_DOMAIN=${API_DOMAIN:-""}   # e.g. api.your-domain.com
+TLS_EMAIL=${TLS_EMAIL:-""}
+
 usage() {
   cat <<USAGE
 Usage: $(basename "$0") --host <IP/Domain> [options]
@@ -57,6 +60,10 @@ Frontend/Vercel options:
   --vercel-token <token>       Vercel token (or set VERCEL_TOKEN env)
   --scope <org>                Vercel org/team scope (optional)
   --project <name>             Vercel project name (optional)
+
+HTTPS options (optional):
+  --api-domain <domain>        Public API domain (for HTTPS reverse proxy)
+  --tls-email <email>          Contact email for ACME/Let's Encrypt (used by Caddy)
 
 Control flags:
   --skip-backend               Skip backend deploy (only Vercel)
@@ -92,6 +99,8 @@ while [[ $# -gt 0 ]]; do
     --vercel-token) VERCEL_TOKEN_ARG="$2"; shift 2;;
     --scope) SCOPE="$2"; shift 2;;
     --project) PROJECT="$2"; shift 2;;
+    --api-domain) API_DOMAIN="$2"; shift 2;;
+    --tls-email) TLS_EMAIL="$2"; shift 2;;
     --skip-backend) SKIP_BACKEND=1; shift 1;;
     --skip-frontend) SKIP_FRONTEND=1; shift 1;;
     -h|--help) usage; exit 0;;
@@ -128,6 +137,12 @@ if [[ -z "$SKIP_BACKEND" ]]; then
   echo "[orchestrator] Ensuring Docker/Compose on server…"
   "${ssh_base[@]}" "bash -lc 'docker --version >/dev/null 2>&1 || (curl -fsSL https://get.docker.com | sh && systemctl enable --now docker); docker compose version >/dev/null 2>&1 || true'"
 
+  echo "[orchestrator] Configuring Docker registry mirrors on server (to prevent Docker Hub timeouts)…"
+  REMOTE_MIRROR_CMD=(
+    "cd '$REMOTE_DIR' && chmod +x scripts/prod/setup-docker-mirrors.sh && sudo scripts/prod/setup-docker-mirrors.sh"
+  )
+  "${ssh_base[@]}" "bash -lc ${REMOTE_MIRROR_CMD@Q}"
+
   echo "[orchestrator] Running API deploy on server…"
   REMOTE_CMD=(
     "cd '$REMOTE_DIR' && chmod +x scripts/prod/up-aliyun-api.sh && \
@@ -151,5 +166,14 @@ if [[ -z "$SKIP_FRONTEND" ]]; then
   "${CMD[@]}"
 fi
 
-echo "[orchestrator] Done. Backend on $HOST:$PORT; Frontend on Vercel."
+# Optional: configure HTTPS reverse proxy for API domain
+if [[ -n "$API_DOMAIN" ]]; then
+  echo "[orchestrator] Configuring HTTPS (Caddy) for API domain: $API_DOMAIN …"
+  REMOTE_CMD_HTTPS=(
+    "cd '$REMOTE_DIR' && chmod +x scripts/prod/up-aliyun-https.sh && \
+    scripts/prod/up-aliyun-https.sh --domain '$API_DOMAIN' ${TLS_EMAIL:+--email '$TLS_EMAIL'}"
+  )
+  "${ssh_base[@]}" "bash -lc ${REMOTE_CMD_HTTPS@Q}"
+fi
 
+echo "[orchestrator] Done. Backend on $HOST:$PORT; Frontend on Vercel."

@@ -88,15 +88,17 @@ const googleEnabled = ref(true)
 const error = ref<string | null>(null)
 
 const signInWithGoogle = () => {
-  const base = import.meta.env.VITE_API_URL || ''
-  const url = `${base.replace(/\/$/, '')}/api/auth/google`
+  const base = (import.meta.env.VITE_API_URL || window.location.origin).replace(/\/$/, '')
+  const url = `${base}/api/auth/google`
   window.location.href = url
 }
 
 onMounted(async () => {
   try {
     const res = await axios.get('/api/auth/config')
-    googleEnabled.value = !!res.data?.data?.googleEnabled
+    const backendEnabled = !!res.data?.data?.googleEnabled
+    const isTrusted = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+    googleEnabled.value = backendEnabled && isTrusted
   } catch (_) {
     googleEnabled.value = false
   }

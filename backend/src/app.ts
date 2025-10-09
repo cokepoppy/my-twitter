@@ -19,6 +19,15 @@ import { searchRoutes } from './routes/search'
 export const createApp = () => {
   const app = express()
 
+  // Build CORS allowlist from env
+  const rawOrigins =
+    process.env.FRONTEND_URLS || process.env.FRONTEND_URL || 'http://localhost:3000'
+  const allowlist = rawOrigins
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+    .map(s => s.replace(/\/$/, ''))
+
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 100,
@@ -28,8 +37,14 @@ export const createApp = () => {
   app.use(helmet())
   app.use(
     cors({
-      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
-      credentials: true
+      origin: (origin, callback) => {
+        // Allow non-browser or same-origin requests without Origin header
+        if (!origin) return callback(null, true)
+        const normalized = origin.replace(/\/$/, '')
+        if (allowlist.includes(normalized)) return callback(null, true)
+        return callback(new Error('Not allowed by CORS'))
+      },
+      credentials: true,
     })
   )
   app.use(compression())
