@@ -2,6 +2,10 @@
 
 A full-stack Twitter clone built with Vue 3, Express.js, TypeScript, and modern web technologies.
 
+## 在线演示
+
+- 部署地址： https://coke-twitter.com/
+
 ## 📸 Screenshots
 
 ![Login Page](doc/screen/login.png)
